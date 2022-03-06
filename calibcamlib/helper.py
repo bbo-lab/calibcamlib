@@ -43,7 +43,10 @@ def calc_3derr(X,P,V):
         return (np.NaN,dists)
         
 def calc_min_line_point_dist(x,p,v):
-    d = p-x;
-    dist = np.linalg.norm(d-np.dot(d,v)*v)
+    #print(x.shape)
+    #print(p.shape)
+    #print(v.shape)
+    d = x-p;
+    dist = np.sqrt(np.sum((d-np.sum(d*v,axis=1)[:,np.newaxis]@v)**2))
     return dist
 

@@ -33,8 +33,10 @@ class Camerasystem:
             P[i,:] = np.tile(-c['R'].T@c['t'],(x.shape[1],1))
 
         X = np.empty(V.shape[1:])
+        X[:] = np.NaN;
         for i,Xp in enumerate(X):
-            X[i] = intersect(P[:,i,:],V[:,i,:]).T
+            if np.sum(~np.isnan(V[:,i,1]))>1:
+                X[i] = intersect(P[:,i,:],V[:,i,:]).T
 
         return (X,P,V)
 
