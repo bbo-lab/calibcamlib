@@ -16,14 +16,8 @@ class Camerasystem:
     def project(self, X):
         x = np.zeros(shape=(len(self.cameras), X.shape[0], 2))
 
-        print(x.shape)
-        print(X.shape)
-
         for i, c in enumerate(self.cameras):
-            print(c['R'].shape)
-            print((c['R'] @ X.T).T.shape)
             coords_cam = (c['R'] @ X.T).T + c['t']
-            print(coords_cam.shape)
             x[i] = c['camera'].space_to_sensor(coords_cam).T.T
 
         return x
