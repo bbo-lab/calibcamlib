@@ -14,13 +14,15 @@ class Camerasystem:
         self.cameras.append({'camera': Camera(A, k), 'R': R, 't': t})
 
     def project(self, X):
+        X_shape = X.shape
+        X = X.reshape(-1, 3)
         x = np.zeros(shape=(len(self.cameras), X.shape[0], 2))
 
         for i, c in enumerate(self.cameras):
             coords_cam = (c['R'] @ X.T).T + c['t']
             x[i] = c['camera'].space_to_sensor(coords_cam).T.T
 
-        return x
+        return x.reshape((len(self.cameras),)+X_shape[0:-1]+(2,))
 
     def triangulate_3derr(self, x):
         # TODO support more than one point!
