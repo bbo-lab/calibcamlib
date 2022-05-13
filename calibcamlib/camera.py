@@ -8,12 +8,12 @@ class Camera:
             offset = [0, 0]
 
         self.offset = offset
-        self.A = A.reshape(3,3)
+        self.A = A.reshape(3, 3)
         self.k = k.reshape(5)
 
     def space_to_sensor(self, X, offset=None):
         if offset is None:
-            offset = self.offset  # TODO implement offset
+            offset = self.offset
 
         assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
 
@@ -24,13 +24,14 @@ class Camera:
 
         x = x @ self.A.T
 
-        return x[:, 0:2]
+        return x[:, 0:2] - offset
 
     def sensor_to_space(self, x, offset=None):
         if offset is None:
-            offset = self.offset  # TODO implement offset
+            offset = self.offset
 
-        assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
+        # assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
+        x = x + offset
 
         X = np.zeros(shape=(x.shape[0], 3))
         X[:, 0:2] = x

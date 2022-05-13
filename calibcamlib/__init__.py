@@ -1,2 +1,2 @@
-from .camera import Camera
-from .camerasystem import Camerasystem
+from calibcamlib.camera import Camera
+from calibcamlib.camerasystem import Camerasystem

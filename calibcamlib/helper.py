@@ -1,36 +1,40 @@
 import numpy as np
+import scipy
 
 
-def intersect(P, V):
-    """This function returns the least squares intersection of the N
-    lines from the system given by eq. 13 in 
-    http://cal.cs.illinois.edu/~johannes/research/LS_line_intersect.pdf.
-    Implementation from https://stackoverflow.com/questions/52088966/nearest-intersection-point-to-many-lines-in-python
-    """
-    # generate all line direction vectors 
-    P = P[~np.isnan(V[:, 1])]
-    V = V[~np.isnan(V[:, 1])]
+def get_line_dist(r1, e1, r2, e2):
+    n = np.cross(e1, e2)
+    return np.abs(np.sum(n * (r1 - r2)))
 
-    if len(V) < 2:
-        ret = np.empty(shape=(1, 3))
-        ret[:] = np.NaN
-        return ret
 
-    n = V / np.linalg.norm(V, axis=1)[:, np.newaxis]  # normalized
+def intersect(bases, vecs):
+    p = np.empty(3)
+    p[:] = np.NaN
 
-    # generate the array of all projectors 
-    projs = np.eye(n.shape[1]) - n[:, :, np.newaxis] * n[:, np.newaxis]  # I - n*n.T
-    # see fig. 1 
+    ray_ok = ~np.any([
+        np.isnan(bases),
+        np.isnan(vecs)
+    ], axis=(0, 2))
 
-    # generate R matrix and q vector
-    R = projs.sum(axis=0)
-    q = (projs @ P[:, :, np.newaxis]).sum(axis=0)
+    bases = bases[ray_ok]
+    vecs = vecs[ray_ok]
 
-    # solve the least squares problem for the 
-    # intersection point p: Rp = q
-    p = np.linalg.lstsq(R, q, rcond=None)[0]
+    n = bases.shape[0]
+    if n < 2:
+        return p
 
-    return p
+    M = np.empty((n, 3, 3))
+    Mbase = np.empty((n, 3, 1))
+
+    for u in range(n):
+        planebasis = scipy.linalg.null_space(vecs[np.newaxis, u])
+        M[u] = planebasis @ planebasis.T
+        Mbase[u] = M[u] @ bases[u, np.newaxis].T
+
+    if np.linalg.matrix_rank(np.sum(M, axis=0)) < 3:
+        return p
+
+    return np.squeeze(np.linalg.solve(np.sum(M, axis=0), np.sum(Mbase, axis=0)).T)
 
 
 def calc_3derr(X, P, V):
@@ -40,15 +44,15 @@ def calc_3derr(X, P, V):
         dists[i] = calc_min_line_point_dist(X, p, V[i])
 
     if np.all(np.isnan(dists)):
-        return (np.nansum(dists ** 2), dists)
+        return np.nansum(dists ** 2), dists
     else:
-        return (np.NaN, dists)
+        return np.NaN, dists
 
 
 def calc_min_line_point_dist(x, p, v):
     # print(x.shape)
     # print(p.shape)
     # print(v.shape)
-    d = x - p;
+    d = x - p
     dist = np.sqrt(np.sum((d - np.sum(d * v, axis=1)[:, np.newaxis] @ v) ** 2))
     return dist
