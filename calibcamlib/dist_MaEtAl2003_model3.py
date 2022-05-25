@@ -13,6 +13,8 @@ def distort_inverse(ab_rd, k):
     s = np.sqrt(np.sum(ab_rd ** 2, axis=1))
     r = np.zeros(n)
 
+    print(s)
+    exit()
     for u in np.where(s > 0)[0]:
         rts = np.roots(np.array([k[1], k[0], 1, -s[u]]))
         rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
@@ -21,4 +23,4 @@ def distort_inverse(ab_rd, k):
         else:
             r[u] = np.min(rts[rtsind])
 
-    return ab_rd * (r / s)
+    return ab_rd * (r / s)[:, np.newaxis]

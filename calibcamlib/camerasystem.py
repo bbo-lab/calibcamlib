@@ -170,9 +170,13 @@ class Camerasystem:
         cs = Camerasystem()
 
         for i_cal, cal in enumerate(mc['cal']):
+            sc = cal['scaling']
+            sp = cal['scale_pixels']
+            ic = cal['icent']
+            ss = cal['sensorsize']
             cam_matrix = np.array([
-                [cal['scaling'][0], cal['scaling'][2], cal['icent'][0] + (cal['sensorsize'][0] + 1) / 2],
-                [0, cal['scaling'][1], cal['icent'][1] + (cal['sensorsize'][1] + 1) / 2],
+                [sc[0]*sp, sc[2]*sp, ic[0]*sp + (ss[0] + 1) / 2],
+                [0, sc[1]*sp, ic[1]*sp + (ss[1] + 1) / 2],
                 [0, 0, 1],
             ])
 

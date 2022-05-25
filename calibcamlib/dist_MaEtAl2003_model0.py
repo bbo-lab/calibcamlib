@@ -4,8 +4,8 @@ import numpy as np
 
 
 def distort(abi, k):
-    s = np.sqrt(np.sum(abi ** 2, axis=1))
-    return (1 + k[0] * s ** 2 + k[1] * s ** 4)[:, np.newaxis] * abi
+    s2 = np.sum(abi ** 2, axis=1)
+    return (1 + k[0] * s2 + k[1] * s2 ** 2)[:, np.newaxis] * abi
 
 
 def distort_inverse(ab_rd, k):
@@ -21,4 +21,4 @@ def distort_inverse(ab_rd, k):
         else:
             r[u] = np.min(np.real(rts[rtsind]))
 
-    return (r / s)[:, np.newaxis] * ab_rd
+    return ab_rd * (r / s)[:, np.newaxis]
