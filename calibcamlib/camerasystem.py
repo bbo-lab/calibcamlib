@@ -35,10 +35,10 @@ class Camerasystem:
         V = np.empty(shape=(x.shape[0], x.shape[1], 3))
         P = np.empty(shape=(x.shape[0], x.shape[1], 3))
 
-        for i, (c, o) in enumerate(zip(self.cameras, offsets)):
+        for i, o in enumerate(offsets):
             V[i, :], P[i, :] = self.get_camera_lines_cam(x[i], i, o)
 
-        return P.reshape(x_shape[0:-1] + (3,)), V.reshape(x_shape[0:-1] + (3,))
+        return V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
 
     def get_camera_lines_cam(self, x, cam_idx, offset):
         if offset is None:
@@ -61,6 +61,7 @@ class Camerasystem:
 
         X = np.empty(V.shape[1:])
         X[:] = np.NaN
+
         for i, Xp in enumerate(X):
             if np.sum(~np.isnan(V[:, i, 1])) > 1:
                 X[i] = intersect(P[:, i, :], V[:, i, :]).T
@@ -126,8 +127,6 @@ class Camerasystem:
 
         points = np.array([intersect(cam_bases, full_dirs[:, i, :]) for i in range(full_dirs.shape[1])])
         points = points[~np.any(np.isnan(points), axis=1)]
-
-        print(f"Triangulated {points.shape[0]} points")
 
         return points
 
