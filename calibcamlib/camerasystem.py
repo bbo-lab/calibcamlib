@@ -3,7 +3,6 @@ from scipy.spatial.transform import Rotation as R
 from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 
-
 # R,t are world->cam
 class Camerasystem:
     def __init__(self):
@@ -31,7 +30,7 @@ class Camerasystem:
             offsets = np.zeros((len(self.cameras), 2))
 
         x_shape = x.shape
-        x = x.reshape(-1, 2)
+        x = x.reshape((x_shape[0], -1, 2))
 
         V = np.empty(shape=(x.shape[0], x.shape[1], 3))
         P = np.empty(shape=(x.shape[0], x.shape[1], 3))
@@ -39,7 +38,7 @@ class Camerasystem:
         for i, (c, o) in enumerate(zip(self.cameras, offsets)):
             V[i, :], P[i, :] = self.get_camera_lines_cam(x[i], i, o)
 
-        return P.reshape(x_shape[1:-1] + (3,)), V.reshape(x_shape[1:-1] + (3,))
+        return P.reshape(x_shape[0:-1] + (3,)), V.reshape(x_shape[0:-1] + (3,))
 
     def get_camera_lines_cam(self, x, cam_idx, offset):
         if offset is None:
@@ -56,7 +55,7 @@ class Camerasystem:
             offsets = np.zeros((len(self.cameras), 2))
 
         x_shape = x.shape
-        x = x.reshape(-1, 2)
+        x = x.reshape((x_shape[0], -1, 2))
 
         V, P = self.get_camera_lines(x, offsets)
 
@@ -66,7 +65,7 @@ class Camerasystem:
             if np.sum(~np.isnan(V[:, i, 1])) > 1:
                 X[i] = intersect(P[:, i, :], V[:, i, :]).T
 
-        return X.reshape(x_shape[1:-1] + (3,)), P.reshape(x_shape[1:-1] + (3,)), V.reshape(x_shape[1:-1] + (3,))
+        return X.reshape(x_shape[1:-1] + (3,))
 
     def triangulate(self, x, offsets):
         # This will be changed to reprojection error in the future!
