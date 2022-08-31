@@ -79,7 +79,12 @@ class Camerasystem:
         if np.sum(n_AB > 0) < 2:
             return np.zeros((0, 3))
 
-        main_cam_idx = np.where(n_AB == np.max(n_AB[n_AB <= max_points]))[0][0]
+        max_mask = n_AB <= max_points
+        if not np.any(max_mask):
+            return np.zeros((0, 3))
+        main_cam_idx = np.where(n_AB == np.max(n_AB[max_mask]))[0][0]
+        if n_AB[main_cam_idx]==0:
+            return np.zeros((0, 3))
 
         cam_bases = np.empty((len(AB), 3))
         cam_bases[:] = np.NaN
