@@ -1,15 +1,16 @@
 import numpy as np
-from .dist_MaEtAl2003_model0 import distort, distort_inverse  # TODO: make model variable
+from calibcamlib import distortion as dist  # TODO: make model variable
 
 
 class Camera:
-    def __init__(self, A, k, offset=None, distortion=None):  # TODO: Implement variable distortion
+    def __init__(self, A, k, xi=0, offset=None, distortion=None):  # TODO: Implement variable distortion
         if offset is None:
             offset = [0, 0]
 
         self.offset = offset
         self.A = A.reshape(3, 3)
         self.k = k.reshape(5)
+        self.xi = xi
 
     def space_to_sensor(self, X, offset=None):
         if offset is None:
@@ -17,10 +18,15 @@ class Camera:
 
         assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
 
+        if not self.xi == 0:
+            norm = np.linalg.norm(X, axis=-1, keepdims=True)
+            X = np.where(norm == 0, X, X / norm)
+            X[..., (2,)] = X[..., (2,)] + self.xi
+
         # code from calibcam.multical_plot.project_board
         x = X / X[:, 2, np.newaxis]
 
-        x[:, 0:2] = distort(x[:, 0:2], self.k)
+        x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
 
         x = x @ self.A.T
 
@@ -39,7 +45,10 @@ class Camera:
 
         X = X @ np.linalg.inv(self.A.T)
 
-        X[:, 0:2] = distort_inverse(X[:, 0:2], self.k)
+        X[:, 0:2] = dist.distort_inverse(X[:, 0:2], self.k)
+
+        if not self.xi == 0:
+            X[..., (2,)] = X[..., (2,)] - self.xi
 
         X /= np.sqrt(np.sum(X ** 2, axis=1))[:, np.newaxis]
 

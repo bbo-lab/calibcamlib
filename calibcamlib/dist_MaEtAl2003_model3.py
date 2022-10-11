@@ -15,7 +15,7 @@ def distort_inverse(ab_rd, k):
 
     print(s)
     exit()
-    for u in np.where(s > 0)[0]:
+    for u in np.where(s >= 0)[0]:
         rts = np.roots(np.array([k[1], k[0], 1, -s[u]]))
         rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
         if not np.any(rtsind):

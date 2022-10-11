@@ -3,13 +3,14 @@ from scipy.spatial.transform import Rotation as R
 from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 
+
 # R,t are world->cam
 class Camerasystem:
     def __init__(self):
         self.cameras = list()
 
-    def add_camera(self, A, k, rotmat, t):
-        self.cameras.append({'camera': Camera(A, k), 'R': rotmat, 't': t})
+    def add_camera(self, A, k, rotmat, t, xi=0):
+        self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
 
     def project(self, X, offsets=None):
         if offsets is None:
@@ -83,7 +84,7 @@ class Camerasystem:
         if not np.any(max_mask):
             return np.zeros((0, 3))
         main_cam_idx = np.where(n_AB == np.max(n_AB[max_mask]))[0][0]
-        if n_AB[main_cam_idx]==0:
+        if n_AB[main_cam_idx] == 0:
             return np.zeros((0, 3))
 
         cam_bases = np.empty((len(AB), 3))
@@ -178,8 +179,8 @@ class Camerasystem:
             ic = cal['icent']
             ss = cal['sensorsize']
             cam_matrix = np.array([
-                [sc[0]*sp, sc[2]*sp, ic[0]*sp + (ss[0] + 1) / 2],
-                [0, sc[1]*sp, ic[1]*sp + (ss[1] + 1) / 2],
+                [sc[0] * sp, sc[2] * sp, ic[0] * sp + (ss[0] + 1) / 2],
+                [0, sc[1] * sp, ic[1] * sp + (ss[1] + 1) / 2],
                 [0, 0, 1],
             ])
 
