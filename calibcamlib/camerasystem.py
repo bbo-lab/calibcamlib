@@ -164,7 +164,8 @@ class Camerasystem:
             cs.add_camera(calib['A'],
                           calib['k'],
                           R.from_rotvec(calib['rvec_cam'].reshape((3,))).as_matrix(),
-                          calib['tvec_cam'].reshape(1, 3)
+                          calib['tvec_cam'].reshape(1, 3),
+                          xi=calib.get('xi', 0),
                           )
 
         return cs
