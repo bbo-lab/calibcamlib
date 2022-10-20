@@ -13,10 +13,11 @@ class TestDistortionFunctions(unittest.TestCase):
         #     'points': np.array([[2000., 1000.], [-300., 200.], [300., -1200.], [-200., 300.]]),
         #     'k': {
         #         0: np.array([0, 0, 0, 0, 0]),
-        #         1: np.array([0.1, 0.1, 0, 0, 0]),
+        #         1: np.array([0.1, 0.2, 0, 0, 0]),
         #         2: np.array([-0.1, 0.1, 0, 0, 0]),
         #         3: np.array([0.1, -0.1, 0, 0, 0]),
-        #         4: np.array([-0.1, -0.1, 0, 0, 0]),
+        #         4: np.array([-0.1, -0.2, 0, 0, 0]),
+        #         5: np.array([-0.1, -0.2, 0.3, 0.4, 0.5]),
         #     },
         #     "sol": {}
         # }
@@ -39,10 +40,10 @@ class TestDistortionFunctions(unittest.TestCase):
         #     'points': np.array([[2000., 1000.], [-300., 200.], [300., -1200.], [-200., 300.]]),
         #     'k': {
         #         0: np.array([0, 0, 0, 0, 0]),
-        #         1: np.array([0.1, 0.1, 0, 0, 0]),
+        #         1: np.array([0.1, 0.2, 0, 0, 0]),
         #         2: np.array([-0.1, 0.1, 0, 0, 0]),
         #         3: np.array([0.1, -0.1, 0, 0, 0]),
-        #         4: np.array([-0.1, -0.1, 0, 0, 0]),
+        #         4: np.array([-0.2, -0.1, 0, 0, 0]),
         #     },
         #     "sol": {}
         # }
@@ -57,7 +58,6 @@ class TestDistortionFunctions(unittest.TestCase):
             np.testing.assert_array_equal(dist.distort_inverse(data['points'], ks), data['sol'][n])
 
     def test_distort_roundtrip(self):
-        return
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort_roundtrip.npy'
 
         # # Build reference file
@@ -65,7 +65,8 @@ class TestDistortionFunctions(unittest.TestCase):
         #     'points': np.array([[2000., 1000.], [-300., 200.], [300., -1200.], [-200., 300.]]),
         #     'k': {
         #         0: np.array([0, 0, 0, 0, 0]),
-        #         1: np.array([0.1, 0.1, 0, 0, 0]),
+        #         1: np.array([0.1, 0.2, 0, 0, 0]),
+        #         2: np.array([0.0001, 0.0002, 0, 0, 0.0003]),
         #     },
         #     "sol": {}
         # }
