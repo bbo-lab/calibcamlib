@@ -23,7 +23,7 @@ def distort(boards_coords_ideal, ks):
 
 
 def distort_inverse(ab_rd, k):
-    assert np.all(k[2:] == 0) "This needs to be implemented"
+    assert np.all(k[2:] == 0), 'This needs to be implemented'
     n = ab_rd.shape[0]
     s = np.sqrt(np.sum(ab_rd ** 2, axis=1))
     r = np.zeros(n)
