@@ -32,10 +32,9 @@ class TestDistortionFunctions(unittest.TestCase):
             np.testing.assert_array_equal(dist.distort(data['points'], ks), data['sol'][n])
 
     def test_distort_inverse(self):
-        return
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort_inverse.npy'
 
-        # # Build reference file
+        # # Build reference file - ALWAYS RUN TEST BEFORE RERUNNING THIS!!!
         # data = {
         #     'points': np.array([[2000., 1000.], [-300., 200.], [300., -1200.], [-200., 300.]]),
         #     'k': {
@@ -44,6 +43,7 @@ class TestDistortionFunctions(unittest.TestCase):
         #         2: np.array([-0.1, 0.1, 0, 0, 0]),
         #         3: np.array([0.1, -0.1, 0, 0, 0]),
         #         4: np.array([-0.2, -0.1, 0, 0, 0]),
+        #         # 5: np.array([-0.1, -0.2, 0.3, 0.4, 0.5]),
         #     },
         #     "sol": {}
         # }
@@ -75,9 +75,41 @@ class TestDistortionFunctions(unittest.TestCase):
         # Test
         data = np.load(ref_file, allow_pickle=True).item()
         for n, ks in data['k'].items():
-            np.testing.assert_array_almost_equal(dist.distort(dist.distort_inverse(data['points'], ks), ks), data['points'])
-            np.testing.assert_array_almost_equal(dist.distort_inverse(dist.distort(data['points'], ks), ks), data['points'])
+            np.testing.assert_array_almost_equal(dist.distort(dist.distort_inverse(data['points'], ks), ks),
+                                                 data['points'])
+            np.testing.assert_array_almost_equal(dist.distort_inverse(dist.distort(data['points'], ks), ks),
+                                                 data['points'])
             pass
+
+    def ntest_distort_roundtrip_tangential(self):
+        ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort_roundtrip_tangential.npy'
+
+        # # Build reference file
+        # data = {
+        #     'points': np.array([[2000., 1000.], [-300., 200.], [300., -1200.], [-200., 300.]]),
+        #     'k': {
+        #         0: np.array([0.0001, 0.0002, 0.0004, 0.0005, 0.0003]),
+        #     },
+        #     "sol": {}
+        # }
+        # np.save(ref_file, data)
+
+        # Test
+        data = np.load(ref_file, allow_pickle=True).item()
+        for n, ks in data['k'].items():
+            np.testing.assert_array_almost_equal(dist.distort(dist.distort_inverse(data['points'], ks), ks),
+                                                 data['points'])
+            np.testing.assert_array_almost_equal(dist.distort_inverse(dist.distort(data['points'], ks), ks),
+                                                 data['points'])
+            pass
+
+    def test_dist_opt_func(self):
+        ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort.npy'
+
+        data = np.load(ref_file, allow_pickle=True).item()
+        for n, ks in data['k'].items():
+            for p, p_d in zip(data['points'], data['sol'][n]):
+                np.testing.assert_array_equal(dist.dist_opt_func(p, p_d, ks), np.zeros_like(p))
 
 
 if __name__ == '__main__':

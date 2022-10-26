@@ -2,7 +2,6 @@
 
 import numpy as np
 
-
 def distort(boards_coords_ideal, ks):
     r2 = np.sum(boards_coords_ideal[..., 0:2] ** 2, axis=-1, keepdims=True)
     b = boards_coords_ideal
@@ -22,18 +21,37 @@ def distort(boards_coords_ideal, ks):
     return boards_coords_dist
 
 
-def distort_inverse(ab_rd, k):
-    assert np.all(k[2:4] == 0), 'This needs to be implemented'
-    n = ab_rd.shape[0]
-    s = np.sqrt(np.sum(ab_rd ** 2, axis=1))
-    r = np.zeros(n)
+def distort_inverse(ab_dist, k):
+    if np.all(k[2:4] == 0):
+        n = ab_dist.shape[0]
+        s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
+        r = np.zeros(n)
 
-    for u in np.where(s > 0)[0]:
-        rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
-        rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
-        if not np.any(rtsind):
-            r[u] = np.nan
-        else:
-            r[u] = np.min(np.real(rts[rtsind]))
+        for u in np.where(s > 0)[0]:
+            rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
+            rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
+            if not np.any(rtsind):
+                r[u] = np.nan
+            else:
+                r[u] = np.min(np.real(rts[rtsind]))
 
-    return ab_rd * (r / s)[:, np.newaxis]
+        return ab_dist * (r / s)[:, np.newaxis]
+    else:
+        from scipy.optimize import fsolve
+
+        ab_ud = []
+        for p_d in ab_dist:
+            ab_ud.append(fsolve(lambda p: dist_opt_func(p, p_d, k), np.array([0, 0])))
+
+        return np.array(ab_ud)
+
+def dist_opt_func(ab, ab_d, k):
+    # This function is included in the unit tests and tested correct
+    a = ab[0]
+    b = ab[1]
+    r2 = (a ** 2 + b ** 2)
+    rcoeff = 1 + k[0] * r2 + k[1] * r2 ** 2 + k[4] * r2 ** 3
+    return (
+        2 * k[2] * a * b + k[3] * (3 * a ** 2 + b ** 2) + a * rcoeff - ab_d[0],
+        2 * k[3] * a * b + k[2] * (3 * b ** 2 + a ** 2) + b * rcoeff - ab_d[1]
+    )
