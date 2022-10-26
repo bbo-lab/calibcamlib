@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 def distort(boards_coords_ideal, ks):
     r2 = np.sum(boards_coords_ideal[..., 0:2] ** 2, axis=-1, keepdims=True)
     b = boards_coords_ideal
@@ -37,6 +38,8 @@ def distort_inverse(ab_dist, k):
 
         return ab_dist * (r / s)[:, np.newaxis]
     else:
+        # Warning: There is no closed-form solution for tangential + radial distortion. Thus, we use a solver from
+        #  scipy.optimize. If this function is used within a time-critical scope, this is probbaly slow
         from scipy.optimize import fsolve
 
         ab_ud = []
@@ -44,6 +47,7 @@ def distort_inverse(ab_dist, k):
             ab_ud.append(fsolve(lambda p: dist_opt_func(p, p_d, k), np.array([0, 0])))
 
         return np.array(ab_ud)
+
 
 def dist_opt_func(ab, ab_d, k):
     # This function is included in the unit tests and tested correct
