@@ -12,26 +12,6 @@ class Camera:
         self.k = k.reshape(5)
         self.xi = xi
 
-    def space_to_sensor(self, X, offset=None):
-        if offset is None:
-            offset = self.offset
-
-        assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
-
-        if not self.xi == 0:
-            norm = np.linalg.norm(X, axis=-1, keepdims=True)
-            X = np.where(norm == 0, X, X / norm)
-            X[..., (2,)] = X[..., (2,)] + self.xi
-
-        # code from calibcam.multical_plot.project_board
-        x = X / X[:, 2, np.newaxis]
-        print(x[:, 0:2])
-        x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
-
-        x = x @ self.A.T
-
-        return x[:, 0:2] - offset
-
     def sensor_to_space(self, x, offset=None):
         if offset is None:
             offset = self.offset
@@ -47,9 +27,28 @@ class Camera:
 
         X[:, 0:2] = dist.distort_inverse(X[:, 0:2], self.k)
 
-        if not self.xi == 0:
-            X[..., (2,)] = X[..., (2,)] - self.xi
-
         X /= np.sqrt(np.sum(X ** 2, axis=1))[:, np.newaxis]
+        a = self.xi * X[:, (2,)] + np.sqrt(1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2)
+        X = X*a
+        X[..., (2,)] = X[..., (2,)] - self.xi
 
         return X
+
+    def space_to_sensor(self, X, offset=None):
+        if offset is None:
+            offset = self.offset
+
+        if not self.xi == 0:
+            norm = np.linalg.norm(X, axis=-1, keepdims=True)
+            X = np.where(norm == 0, X, X / norm)
+            X[..., (2,)] = X[..., (2,)] + self.xi
+
+        # code from calibcam.multical_plot.project_board
+        x = X / X[:, 2, np.newaxis]
+
+        x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
+
+        x = x @ self.A.T
+
+        return x[:, 0:2] - offset
+

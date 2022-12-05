@@ -8,7 +8,7 @@ class TestCameraClass(unittest.TestCase):
     def test_space_to_sensor(self):
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'camera_test_space_to_sensor.npy'
 
-        # # Build reference file
+        # Build reference file
         # data = {
         #     'points': np.array([[200., 300., 1000.], [-200., 300., 1000.], [200., -300., 1000.], [-200., -300., 1000.]]),
         #     'cams': {
@@ -19,7 +19,7 @@ class TestCameraClass(unittest.TestCase):
         #                 [0, 0, 1.],
         #             ]),
         #             'k': np.array([0, 0, 0, 0, 0]),
-        #             'xi': 0,
+        #             'xi': 0.91,
         #             'offset': np.array([5, 10])
         #         },
         #     },
@@ -40,7 +40,7 @@ class TestCameraClass(unittest.TestCase):
     def test_sensor_to_space(self):
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'camera_test_sensor_to_space.npy'
 
-        # # Build reference file
+        # Build reference file
         # data = {
         #     'points': np.array([[200., 300.], [-200., 300.], [200., -300.], [-200., -300.]]),
         #     'cams': {
@@ -51,7 +51,7 @@ class TestCameraClass(unittest.TestCase):
         #                 [0, 0, 1.],
         #             ]),
         #             'k': np.array([0, 0, 0, 0, 0]),
-        #             'xi': 0,
+        #             'xi': 0.91,
         #             'offset': np.array([5, 10])
         #         },
         #     },
@@ -73,23 +73,23 @@ class TestCameraClass(unittest.TestCase):
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'camera_test_roundtrip.npy'
 
         # Build reference file
-        data = {
-            'points': np.array([[200., 300.], [-200., 300.], [200., -300.], [-200., -300.]]),
-            'cams': {
-                0: {
-                    'A': np.array([
-                        [1780., 0, 628.3],
-                        [0, 1780., 505.2],
-                        [0, 0, 1.],
-                    ]),
-                    'k': np.array([0, 0, 0, 0, 0]),
-                    'xi': 0,
-                    'offset': np.array([5, 10])
-                },
-            },
-            "sol": {}
-        }
-        np.save(ref_file, data)
+        # data = {
+        #     'points': np.array([[200., 300.], [-200., 300.], [200., -300.], [-200., -300.]]),
+        #     'cams': {
+        #         0: {
+        #             'A': np.array([
+        #                 [1780., 0, 628.3],
+        #                 [0, 1780., 505.2],
+        #                 [0, 0, 1.],
+        #             ]),
+        #             'k': np.array([0, 0, 0, 0, 0]),
+        #             'xi': 0.91,
+        #             'offset': np.array([5, 10])
+        #         },
+        #     },
+        #     "sol": {}
+        # }
+        # np.save(ref_file, data)
 
         # Test
         data = np.load(ref_file, allow_pickle=True).item()

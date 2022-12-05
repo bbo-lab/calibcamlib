@@ -39,7 +39,7 @@ def distort_inverse(ab_dist, k):
         return ab_dist * (r / s)[:, np.newaxis]
     else:
         # Warning: There is no closed-form solution for tangential + radial distortion. Thus, we use a solver from
-        #  scipy.optimize. If this function is used within a time-critical scope, this is probbaly slow
+        #  scipy.optimize. If this function is used within a time-critical scope, this is probably slow
         from scipy.optimize import fsolve
 
         ab_ud = []
