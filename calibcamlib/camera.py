@@ -28,7 +28,11 @@ class Camera:
         X[:, 0:2] = dist.distort_inverse(X[:, 0:2], self.k)
 
         X /= np.sqrt(np.sum(X ** 2, axis=1))[:, np.newaxis]
-        a = self.xi * X[:, (2,)] + np.sqrt(1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2)
+        radicand = 1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2
+        if radicand >= 0:
+            a = self.xi * X[:, (2,)] + np.sqrt(radicand)
+        else:
+            a = np.nan
         X = X*a
         X[..., (2,)] = X[..., (2,)] - self.xi
 

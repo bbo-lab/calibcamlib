@@ -13,8 +13,10 @@ class Camerasystem:
         self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
 
     def project(self, X, offsets=None):
+        # Project points in space of shape np.array((..., 3)) to all cameras.
+        # Returns image coordinates np.array((N_CAMS, ..., 2))
         if offsets is None:
-            offsets = np.zeros((len(self.cameras), 2))
+            offsets = [None for _ in self.cameras]
 
         X_shape = X.shape
         X = X.reshape(-1, 3)
@@ -26,9 +28,30 @@ class Camerasystem:
 
         return x.reshape((len(self.cameras),) + X_shape[0:-1] + (2,))
 
-    def get_camera_lines(self, x, offsets):
+    def project_dir(self, V, offsets=None):
+        # Project directions in space of shape np.array((..., 3)) to all cameras.
+        # Returns image coordinates np.array((N_CAMS, ..., 2))
+        # Use this if only a direction from teh camera is known and the camera translation is negligible, e.g.
+        #  for objects far away from omnidirectional cameras
         if offsets is None:
-            offsets = np.zeros((len(self.cameras), 2))
+            offsets = [None for _ in self.cameras]
+
+        V_shape = V.shape
+        V = V.reshape(-1, 3)
+        x = np.zeros(shape=(len(self.cameras), V.shape[0], 2))
+
+        for i, (c, o) in enumerate(zip(self.cameras, offsets)):
+            coords_cam = (c['R'] @ V.T).T
+            x[i] = c['camera'].space_to_sensor(coords_cam, o).T.T
+
+        return x.reshape((len(self.cameras),) + V_shape[0:-1] + (2,))
+
+    def get_camera_lines(self, x, offsets=None):
+        # Get camera lines corresponding to image coordinates in shape np.array((N_CAMS, ..., 2)) for all cameras.
+        # Returns directions from camera np.array((N_CAMS, ..., 3)) and camera positions np.array((N_CAMS, ..., 3))
+        #  in world coordinates (for direct triangulation)
+        if offsets is None:
+            offsets = [None for _ in self.cameras]
 
         x_shape = x.shape
         x = x.reshape((x_shape[0], -1, 2))
@@ -41,20 +64,20 @@ class Camerasystem:
 
         return V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
 
-    def get_camera_lines_cam(self, x, cam_idx, offset):
-        if offset is None:
-            offset = np.zeros((1, 2))
-
+    def get_camera_lines_cam(self, x, cam_idx, offset=None):
+        # Get camera lines corresponding to image coordinates in shape np.array((..., 2)) for camera cam_idx.
+        # Returns directions from camera np.array((..., 3)) and camera position (tiles to dirs) np.array((..., 3))
+        #  in world coordinates.
+        # This differes from Camera.sensor_to_space in the translation to world coordinates and the cam pos output
         c = self.cameras[cam_idx]
         V = c['camera'].sensor_to_space(x, offset) @ c['R']
         P = np.tile(- c['t'] @ c['R'], (x.shape[0], 1))
 
         return V, P
 
-    def triangulate_3derr(self, x, offsets):
-        if offsets is None:
-            offsets = np.zeros((len(self.cameras), 2))
-
+    def triangulate_3derr(self, x, offsets=None):
+        # Triangulate image coordinates in shape np.array((N_CAMS, ..., 2)) by finding the closest point to camera lines
+        # Returns 3d points np.array((..., 3)) in world coordinates.
         x_shape = x.shape
         x = x.reshape((x_shape[0], -1, 2))
 
@@ -70,12 +93,19 @@ class Camerasystem:
         return X.reshape(x_shape[1:-1] + (3,))
 
     def triangulate(self, x, offsets):
-        # This will be changed to reprojection error in the future!
-        # Use this function only if that is desired, else use triangulate_3derr
+        # Triangulate image coordinates in shape np.array((N_CAMS, ..., 2)).
+        # Returns 3d points np.array((..., 3)) in world coordinates.
+        # TODO: Implement triangulation by reprojection error (minimizing distance of original and reprojected image coordinates)
+        #  This will be changed to reprojection error in the future!
+        #  Use this function only if that is desired, else use triangulate_3derr
         return self.triangulate_3derr(x, offsets)
 
     def triangulate_nopointcorr(self, AB, offsets, linedist_thres, max_points=12):
-        # Triangulates a 3d point from list of unsorted 2d points, automatically finding correspondences
+        # Tries to triangulate image coordinates in shape np.array((N_CAMS, M, 2)) even if image coordinate order does
+        # not match between cameras, i.e. AB is shuffled in the second dimension for each camera independently.
+        # linedist_thres: distance between camera lines that is still counted as a correspondance
+        # max_points: limits number of points on which this is tried
+        # Returns 3d points np.array((..., 3)) in world coordinates.
         n_AB = np.array([ab.shape[0] for ab in AB])
         if np.sum(n_AB > 0) < 2:
             return np.zeros((0, 3))

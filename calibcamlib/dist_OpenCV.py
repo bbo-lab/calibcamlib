@@ -2,7 +2,6 @@
 
 import numpy as np
 
-
 def distort(boards_coords_ideal, ks):
     r2 = np.sum(boards_coords_ideal[..., 0:2] ** 2, axis=-1, keepdims=True)
     b = boards_coords_ideal
@@ -23,20 +22,21 @@ def distort(boards_coords_ideal, ks):
 
 
 def distort_inverse(ab_dist, k):
+    n = ab_dist.shape[0]
+    s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
+    r = np.zeros(n)
+
+    for u in np.where(s > 0)[0]:
+        rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
+        rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
+        if not np.any(rtsind):
+            r[u] = np.nan
+        else:
+            r[u] = np.min(np.real(rts[rtsind]))
+    ab = ab_dist * (r / s)[:, np.newaxis]
+
     if np.all(k[2:4] == 0):
-        n = ab_dist.shape[0]
-        s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
-        r = np.zeros(n)
-
-        for u in np.where(s > 0)[0]:
-            rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
-            rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
-            if not np.any(rtsind):
-                r[u] = np.nan
-            else:
-                r[u] = np.min(np.real(rts[rtsind]))
-
-        return ab_dist * (r / s)[:, np.newaxis]
+        return ab
     else:
         # Warning: There is no closed-form solution for tangential + radial distortion. Thus, we use a solver from
         #  scipy.optimize. If this function is used within a time-critical scope, this is probably slow
@@ -44,7 +44,10 @@ def distort_inverse(ab_dist, k):
 
         ab_ud = []
         for p_d in ab_dist:
-            ab_ud.append(fsolve(lambda p: dist_opt_func(p, p_d, k), np.array([0, 0])))
+            sol = fsolve(lambda p: dist_opt_func(p, p_d, k), ab, full_output=True, maxfev=1000, xtol=1e-6)
+            if not sol[2] == 1:
+                print(sol[3])
+            ab_ud.append(sol[0])
 
         return np.array(ab_ud)
 
