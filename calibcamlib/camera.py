@@ -16,10 +16,14 @@ class Camera:
         if offset is None:
             offset = self.offset
 
+        X = np.empty(shape=(x.shape[0], 3))
+        if np.all(np.isnan(x)):
+            X.fill(np.nan)
+            return X
+
         # assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
         x = x + offset
 
-        X = np.zeros(shape=(x.shape[0], 3))
         X[:, 0:2] = x
         X[:, 2] = 1
 
@@ -41,6 +45,9 @@ class Camera:
     def space_to_sensor(self, X, offset=None):
         if offset is None:
             offset = self.offset
+
+        if np.all(np.isnan(X)):
+            return np.full((X.shape[0], 2), np.nan)
 
         if not self.xi == 0:
             norm = np.linalg.norm(X, axis=-1, keepdims=True)
