@@ -33,10 +33,11 @@ class Camera:
 
         X /= np.sqrt(np.sum(X ** 2, axis=1))[:, np.newaxis]
         radicand = 1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2
-        if radicand >= 0:
-            a = self.xi * X[:, (2,)] + np.sqrt(radicand)
-        else:
-            a = np.nan
+        rad_mask = radicand.reshape((-1,)) >= 0
+
+        a = np.full(X[:, (2,)].shape, np.nan)
+        a[rad_mask, :] = self.xi * X[rad_mask, 2].reshape(-1, 1) + np.sqrt(radicand[rad_mask])
+
         X = X*a
         X[..., (2,)] = X[..., (2,)] - self.xi
 
