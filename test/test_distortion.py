@@ -62,7 +62,7 @@ class TestDistortionFunctions(unittest.TestCase):
         # Test
         data = np.load(ref_file, allow_pickle=True).item()
         for n, ks in data['k'].items():
-            np.testing.assert_array_equal(dist.distort_inverse(data['points'], ks), data['sol'][n])
+            np.testing.assert_array_almost_equal(dist.distort_inverse(data['points'], ks), data['sol'][n])
 
     def test_distort_roundtrip(self):
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort_roundtrip.npy'

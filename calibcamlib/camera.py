@@ -56,7 +56,6 @@ class Camera:
 
         # code from calibcam.multical_plot.project_board
         x = X / X[:, 2, np.newaxis]
-
         x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
 
         x = x @ self.A.T
