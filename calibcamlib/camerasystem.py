@@ -167,6 +167,11 @@ class Camerasystem:
         return points
 
     @staticmethod
+    def load(filename: str):
+        calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
+        return Camerasystem.from_calibs(calibs)
+
+    @staticmethod
     def from_calibcam_file(filename: str):
         cs = Camerasystem()
         calib = np.load(filename, allow_pickle=True)[()]
