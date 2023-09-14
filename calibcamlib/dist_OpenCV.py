@@ -45,8 +45,8 @@ def distort_inverse(ab_dist, k):
         ab_ud = []
         for p_o, p_d in zip(ab, ab_dist):
             sol = fsolve(lambda p: dist_opt_func(p, p_d, k), p_o, full_output=True, maxfev=1000, xtol=1e-6)
-            if not sol[2] == 1:
-                print(sol[3])
+            # if not sol[2] == 1:
+            #     print(sol[3])
             ab_ud.append(sol[0])
 
         return np.array(ab_ud)
