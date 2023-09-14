@@ -117,7 +117,7 @@ class Camerasystem:
             err = err.ravel()
         return err
 
-    def triangulate(self, x, offsets):
+    def triangulate(self, x, offsets=None):
         # Triangulate image coordinates in shape np.array((N_CAMS, ..., 2)).
         # Returns 3d points np.array((..., 3)) in world coordinates.
         return self.triangulate_repro(x, offsets)
