@@ -37,22 +37,33 @@ def intersect(bases, vecs):
     return np.squeeze(np.linalg.solve(np.sum(M, axis=0), np.sum(Mbase, axis=0)).T)
 
 
-def calc_3derr(X, P, V):
-    dists = np.zeros(shape=(P.shape[0]))
+def calc_3derr(X, P, V) -> (float, np.ndarray):
+    """Return the sum of the squared distances of points from lines
+    :param X: N_POINTSx3 array of points
+    :param P: N_LINESx3 array of points on the lines
+    :param V: N_LINESx3 array of line directions
+    :return: float of the sum of the squared distances
+    :return: (N_POINTS, N_LINES,) array of distances
+    """
+    dists = np.zeros(shape=(X.shape[0], P.shape[0]))
 
     for i, p in enumerate(P):
-        dists[i] = calc_min_line_point_dist(X, p, V[i])
+        dists[:, i] = calc_min_line_point_dist(X, p, V[i])
 
-    if np.all(np.isnan(dists)):
-        return np.nansum(dists ** 2), dists
-    else:
-        return np.NaN, dists
+    return np.nansum(dists ** 2), dists
 
 
-def calc_min_line_point_dist(x, p, v):
-    # print(x.shape)
-    # print(p.shape)
-    # print(v.shape)
+def calc_min_line_point_dist(x, p, v) -> np.ndarray:
+    """Return the minimum distances of points from a line
+    :param x: Nx3 array of points
+    :param p: (3,) array of a point on the line
+    :param v: (3,) array of the direction of the line
+    :return: (N,) array of distances
+    """
+
+    p = p[np.newaxis, :]
+    v = v[np.newaxis, :]
     d = x - p
-    dist = np.sqrt(np.sum((d - np.sum(d * v, axis=1)[:, np.newaxis] @ v) ** 2))
-    return dist
+    proj_vecs = d - np.sum(d * v, axis=1)[:, np.newaxis] @ v
+    dists = np.linalg.norm(proj_vecs, axis=1)
+    return dists
