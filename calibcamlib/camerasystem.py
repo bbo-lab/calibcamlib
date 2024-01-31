@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from scipy.optimize import least_squares
 from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 
@@ -92,13 +93,34 @@ class Camerasystem:
 
         return X.reshape(x_shape[1:-1] + (3,))
 
-    def triangulate(self, x, offsets):
+    def triangulate_repro(self, x, offsets=None):
+        X = self.triangulate_3derr(x, offsets);
+
+        x_shape = x.shape
+        x = x.reshape((x_shape[0], -1, 2))
+
+        for i_point in range(x.shape[1]):
+            res = least_squares(self.repro_error, X[i_point],
+                          method='lm',
+                          verbose=0,
+                          args=[x[:,i_point]],
+                          kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+            X[i_point] = res.x
+
+        return X
+
+    def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False):
+        err = self.project(X, offsets)-x_orig
+        if nan_to_zero:
+            err[np.isnan(err)] = 0
+        if ravel:
+            err = err.ravel()
+        return err
+
+    def triangulate(self, x, offsets=None):
         # Triangulate image coordinates in shape np.array((N_CAMS, ..., 2)).
         # Returns 3d points np.array((..., 3)) in world coordinates.
-        # TODO: Implement triangulation by reprojection error (minimizing distance of original and reprojected image coordinates)
-        #  This will be changed to reprojection error in the future!
-        #  Use this function only if that is desired, else use triangulate_3derr
-        return self.triangulate_3derr(x, offsets)
+        return self.triangulate_repro(x, offsets)
 
     def triangulate_nopointcorr(self, AB, offsets, linedist_thres, max_points=12):
         # Tries to triangulate image coordinates in shape np.array((N_CAMS, M, 2)) even if image coordinate order does
@@ -165,6 +187,11 @@ class Camerasystem:
         points = points[~np.any(np.isnan(points), axis=1)]
 
         return points
+
+    @staticmethod
+    def load(filename: str):
+        calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
+        return Camerasystem.from_calibs(calibs)
 
     @staticmethod
     def from_calibcam_file(filename: str):
