@@ -27,5 +27,5 @@ setup(
     ],
     packages=['calibcamlib'],
     include_package_data=True,
-    install_requires=["numpy", "scipy"],
+    install_requires=["numpy", "scipy", "pyyaml"],
 )

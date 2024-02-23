@@ -1,8 +1,10 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import least_squares
+import yaml
 from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
+from calibcamlib.yaml_helper import collection_to_array
 
 
 # R,t are world->cam
@@ -192,7 +194,12 @@ class Camerasystem:
 
     @staticmethod
     def load(filename: str):
-        calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
+        if filename.endswith('.npy'):
+            calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
+        elif filename.endswith('.yml'):
+            with open(filename, 'r') as stream:
+                calibs = yaml.safe_load(stream)["calibs"]
+                calibs = collection_to_array(calibs)
         return Camerasystem.from_calibs(calibs)
 
     @staticmethod
