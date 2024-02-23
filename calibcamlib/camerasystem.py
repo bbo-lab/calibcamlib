@@ -94,20 +94,22 @@ class Camerasystem:
         return X.reshape(x_shape[1:-1] + (3,))
 
     def triangulate_repro(self, x, offsets=None):
-        X = self.triangulate_3derr(x, offsets);
+        X = self.triangulate_3derr(x, offsets)
 
         x_shape = x.shape
         x = x.reshape((x_shape[0], -1, 2))
+        X = X.reshape(-1, 3)
 
         for i_point in range(x.shape[1]):
-            res = least_squares(self.repro_error, X[i_point],
-                          method='lm',
-                          verbose=0,
-                          args=[x[:,i_point]],
-                          kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
-            X[i_point] = res.x
+            if np.all(~np.isnan(X[i_point])):
+                res = least_squares(self.repro_error, X[i_point],
+                                      method='lm',
+                                      verbose=0,
+                                      args=[x[:, i_point]],
+                                      kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+                X[i_point] = res.x
 
-        return X
+        return X.reshape(x_shape[1:-1] + (3,))
 
     def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False):
         err = self.project(X, offsets)-x_orig

@@ -63,7 +63,8 @@ def calc_min_line_point_dist(x, p, v) -> np.ndarray:
 
     p = p[np.newaxis, :]
     v = v[np.newaxis, :]
+    v /= np.linalg.norm(v, axis=1, keepdims=True)
     d = x - p
-    proj_vecs = d - np.sum(d * v, axis=1)[:, np.newaxis] @ v
+    proj_vecs = d - np.sum(d * v, axis=1, keepdims=True) * v
     dists = np.linalg.norm(proj_vecs, axis=1)
     return dists

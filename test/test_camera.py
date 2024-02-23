@@ -1,7 +1,9 @@
-import unittest
-import numpy as np
-from calibcamlib import distortion as dist, Camera
 import pathlib
+import unittest
+
+import numpy as np
+
+from calibcamlib import Camera, helper
 
 
 class TestCameraClass(unittest.TestCase):
@@ -95,7 +97,16 @@ class TestCameraClass(unittest.TestCase):
         data = np.load(ref_file, allow_pickle=True).item()
         for n, cam in data['cams'].items():
             cam = Camera(cam['A'], cam['k'], xi=cam['xi'], offset=cam['offset'])
-            np.testing.assert_array_almost_equal(cam.space_to_sensor(cam.sensor_to_space(data['points'])), data['points'])
+            np.testing.assert_array_almost_equal(cam.space_to_sensor(cam.sensor_to_space(data['points'])),
+                                                 data['points'])
+
+    def test_point_line_dist(self):
+        points = np.array([[1, np.nan, -1],
+                           [2, 2, -2]]).astype(np.float64)
+        pt = np.zeros(3)
+        vec = np.array([0, 0, -1]).astype(np.float64)
+        dists = helper.calc_min_line_point_dist(points, pt, vec)
+        np.testing.assert_allclose(dists, np.array([np.nan, np.sqrt(8)]))
 
 
 if __name__ == '__main__':
