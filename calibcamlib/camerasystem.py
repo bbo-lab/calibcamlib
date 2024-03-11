@@ -103,12 +103,14 @@ class Camerasystem:
         X = X.reshape(-1, 3)
 
         for i_point in range(x.shape[1]):
-            if np.all(~np.isnan(X[i_point])):
+            if np.any(np.isnan(X[i_point])):
+                X[i_point] = np.nan
+            else:
                 res = least_squares(self.repro_error, X[i_point],
-                                      method='lm',
-                                      verbose=0,
-                                      args=[x[:, i_point]],
-                                      kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+                              method='lm',
+                              verbose=0,
+                              args=[x[:,i_point]],
+                              kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
                 X[i_point] = res.x
 
         return X.reshape(x_shape[1:-1] + (3,))
@@ -126,7 +128,7 @@ class Camerasystem:
         # Returns 3d points np.array((..., 3)) in world coordinates.
         return self.triangulate_repro(x, offsets)
 
-    def triangulate_nopointcorr(self, AB, offsets, linedist_thres, max_points=12):
+    def triangulate_nopointcorr(self, AB, offsets=None, linedist_thres=0.2, discard_ambiguities=True, max_points=12):
         # Tries to triangulate image coordinates in shape np.array((N_CAMS, M, 2)) even if image coordinate order does
         # not match between cameras, i.e. AB is shuffled in the second dimension for each camera independently.
         # linedist_thres: distance between camera lines that is still counted as a correspondance
@@ -170,12 +172,13 @@ class Camerasystem:
                                                  dirs[j]) for j in range(dirs.shape[0])] for i in
                                   range(full_dirs.shape[1])])
 
-            np.equal(distances, np.min(distances, axis=0)[np.newaxis, :])
             connectmat = np.all([distances < linedist_thres,
                                  np.equal(distances, np.min(distances, axis=1)[:, np.newaxis]),
                                  # np.equal(distances,np.min(distances,axis=0)[np.newaxis,:])
                                  ], axis=0)
-            connectmat[:, np.sum(connectmat, axis=0) > 1] = False  # Discard ambiguities
+            if discard_ambiguities:
+                connectmat[:, np.sum(connectmat, axis=0) > 1] = False  # Discard ambiguities
+
             corrs = np.array(np.where(connectmat))
 
             if corrs.shape[1] == 0:
