@@ -107,16 +107,16 @@ class Camerasystem:
                 X[i_point] = np.nan
             else:
                 res = least_squares(self.repro_error, X[i_point],
-                              method='lm',
-                              verbose=0,
-                              args=[x[:,i_point]],
-                              kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+                                    method='lm',
+                                    verbose=0,
+                                    args=[x[:, i_point]],
+                                    kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
                 X[i_point] = res.x
 
         return X.reshape(x_shape[1:-1] + (3,))
 
     def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False):
-        err = self.project(X, offsets)-x_orig
+        err = self.project(X, offsets) - x_orig
         if nan_to_zero:
             err[np.isnan(err)] = 0
         if ravel:
@@ -135,62 +135,99 @@ class Camerasystem:
         # max_points: limits number of points on which this is tried
         # Returns 3d points np.array((..., 3)) in world coordinates.
         n_AB = np.array([ab.shape[0] for ab in AB])
+        n_cams = len(self.cameras)
+
+        assert n_cams == len(AB), "Number of point sets must match cameras"
+
         if np.sum(n_AB > 0) < 2:
             return np.zeros((0, 3))
 
-        max_mask = n_AB <= max_points
-        if not np.any(max_mask):
-            return np.zeros((0, 3))
-        main_cam_idx = np.where(n_AB == np.max(n_AB[max_mask]))[0][0]
-        if n_AB[main_cam_idx] == 0:
+        max_mask = n_AB > max_points
+        if np.any(max_mask):
+            print(f"Maximum number of points exceeded in cams {np.where(max_mask)[0]}")
             return np.zeros((0, 3))
 
-        cam_bases = np.empty((len(AB), 3))
-        cam_bases[:] = np.NaN
+        cam_bases = np.full((len(AB), 3), np.NaN)
 
-        full_ab = np.empty((len(AB), n_AB[main_cam_idx], 2))
-        full_ab[:] = np.NaN
-        full_ab[main_cam_idx] = AB[main_cam_idx]
+        # Calculate all lines from image coordinates
+        full_dirs = []
+        for i_cam, (ab, o) in enumerate(zip(AB, offsets)):
+            lines, cb = self.get_camera_lines_cam(
+                ab,
+                i_cam,
+                o
+            )
+            full_dirs.append(lines)
+            if len(cb) > 0:
+                cam_bases[i_cam] = cb[0]
 
-        full_dirs = np.empty((len(AB), n_AB[main_cam_idx], 3))
-        full_dirs[:] = np.NaN
-        full_dirs[main_cam_idx, :, :], cb = self.get_camera_lines_cam(AB[main_cam_idx],
-                                                                      main_cam_idx,
-                                                                      offsets[main_cam_idx])
-        cam_bases[main_cam_idx, :] = cb[0]
-
-        for (iC, (ab, offset)) in enumerate(zip(AB, offsets)):
-            if iC == main_cam_idx:
+        correspondences = [np.full((n_cams, n_ab), -1, dtype=int) for n_ab in n_AB]
+        AB_sort_idxs = [np.full((n_ab,), -1, dtype=int) for n_ab in n_AB]
+        for i_cam in range(n_cams):
+            if len(full_dirs[i_cam])==0:
                 continue
-            if ab.shape[0] == 0:
-                continue
-            dirs, cb = self.get_camera_lines_cam(ab, iC, offset)
+            # Loop over all following cameras (previous cameras have already been compared the other way round)
+            for j_cam in range(i_cam + 1, n_cams):
+                if len(full_dirs[j_cam]) == 0:
+                    continue
+                # Calculate all distances between lines from cam i and j
+                distances = np.array(
+                    [
+                        [
+                            get_line_dist(
+                                cam_bases[i_cam], full_dirs[i_cam][i, :],
+                                cam_bases[j_cam], full_dirs[j_cam][j, :]
+                            )
+                            for j in range(full_dirs[j_cam].shape[0])
+                        ]
+                        for i in range(full_dirs[i_cam].shape[0])
+                    ]
+                )
 
-            cam_bases[iC] = cb[0]
+                # If discard_ambiguities is enabled, ambiguous combinations are discarded
+                if discard_ambiguities:
+                    connectmat = distances < linedist_thres
+                    connectmat[:, np.sum(connectmat, axis=0) > 1] = False  # Discard ambiguities
+                # ... else, the smallest distance is used
+                else:
+                    connectmat = np.all([
+                        # Distance is below threshold
+                        distances < linedist_thres,
+                        # Only select closest line in both directions
+                        np.equal(distances, np.min(distances, axis=0, keepdims=True)),
+                        np.equal(distances, np.min(distances, axis=1, keepdims=True)),
+                    ], axis=0)
 
-            distances = np.array([[get_line_dist(cam_bases[main_cam_idx], full_dirs[main_cam_idx, i, :], cam_bases[iC],
-                                                 dirs[j]) for j in range(dirs.shape[0])] for i in
-                                  range(full_dirs.shape[1])])
+                corr_i_cam, corr_j_cam = np.where(connectmat)
+                for (corr_i, corr_j) in zip(corr_i_cam, corr_j_cam):
+                    correspondences[i_cam][j_cam, corr_i] = corr_j
+                    correspondences[j_cam][i_cam, corr_j] = corr_i
 
-            connectmat = np.all([distances < linedist_thres,
-                                 np.equal(distances, np.min(distances, axis=1)[:, np.newaxis]),
-                                 # np.equal(distances,np.min(distances,axis=0)[np.newaxis,:])
-                                 ], axis=0)
-            if discard_ambiguities:
-                connectmat[:, np.sum(connectmat, axis=0) > 1] = False  # Discard ambiguities
+        AB_sort = []
+        for i_cam in range(n_cams):
+            for j_cam in range(i_cam+1, n_cams):
+                for i_ab in range(len(correspondences[i_cam][j_cam])):
+                    if correspondences[i_cam][j_cam, i_ab] == -1:
+                        continue
+                    corr_j_idx = correspondences[i_cam][j_cam, i_ab]
+                    if AB_sort_idxs[i_cam][i_ab] >= 0:
+                        assert (AB_sort_idxs[j_cam][corr_j_idx] == -1 or
+                                AB_sort_idxs[j_cam][corr_j_idx] == AB_sort_idxs[i_cam][i_ab]), "Assignment error"
+                        AB_sort_idx = AB_sort_idxs[i_cam][i_ab]
+                    elif AB_sort_idxs[j_cam][corr_j_idx] >= 0:
+                        AB_sort_idx = AB_sort_idxs[j_cam][corr_j_idx]
+                    else:
+                        AB_sort.append(np.full((n_cams, 2), np.nan))
+                        AB_sort_idx = len(AB_sort) - 1
+                    AB_sort_idxs[i_cam][i_ab] = AB_sort_idx
+                    AB_sort_idxs[j_cam][corr_j_idx] = AB_sort_idx
 
-            corrs = np.array(np.where(connectmat))
+                    AB_sort[AB_sort_idx][i_cam] = AB[i_cam][i_ab]
+                    AB_sort[AB_sort_idx][j_cam] = AB[j_cam][corr_j_idx]
 
-            if corrs.shape[1] == 0:
-                continue
+        AB_sort = np.transpose(np.array(AB_sort), (1, 0, 2))
+        points = self.triangulate(AB_sort, offsets=offsets)
 
-            full_ab[iC, corrs[0], :] = ab[corrs[1]]
-            # print(full_ab[iC])
-            full_dirs[iC, corrs[0], :] = dirs[corrs[1].T]
-        if full_dirs.shape[1] == 0:
-            return np.zeros((0, 3))
-
-        points = np.array([intersect(cam_bases, full_dirs[:, i, :]) for i in range(full_dirs.shape[1])])
         points = points[~np.any(np.isnan(points), axis=1)]
 
         return points
