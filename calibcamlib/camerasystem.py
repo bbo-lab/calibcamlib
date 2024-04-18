@@ -197,13 +197,18 @@ class Camerasystem:
 
     @staticmethod
     def load(filename: str):
+        calibs = Camerasystem.load_dict(filename)
+        return Camerasystem.from_calibs(calibs)
+
+    @staticmethod
+    def load_dict(filename):
         if filename.endswith('.npy'):
             calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
         elif filename.endswith('.yml'):
             with open(filename, 'r') as stream:
                 calibs = yaml.safe_load(stream)["calibs"]
                 calibs = collection_to_array(calibs)
-        return Camerasystem.from_calibs(calibs)
+        return calibs
 
     @staticmethod
     def from_calibcam_file(filename: str):
