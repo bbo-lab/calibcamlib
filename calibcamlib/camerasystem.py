@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import least_squares
@@ -9,8 +11,9 @@ from calibcamlib.yaml_helper import collection_to_array
 
 # R,t are world->cam
 class Camerasystem:
-    def __init__(self):
+    def __init__(self, unit=None):
         self.cameras = list()
+        self.unit = unit
 
     def add_camera(self, A, k, rotmat, t, xi=0):
         self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
@@ -196,19 +199,63 @@ class Camerasystem:
         return points
 
     @staticmethod
-    def load(filename: str):
-        calibs = Camerasystem.load_dict(filename)
-        return Camerasystem.from_calibs(calibs)
+    def load(filename: str, unit=None):
+        calibration = Camerasystem.load_dict(filename)
+        calibration = Camerasystem.adjust_calibration_unit(calibration, unit)
+        return Camerasystem.from_calibs(calibration["calibs"],
+                                        unit=calibration["board_params"]["unit"])
+
+    @staticmethod
+    def adjust_calibration_unit(calibration, unit):
+        if unit == None:
+            return calibration
+        elif "board_params" not in calibration:
+            warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
+                          " unit in calibration['board_params']['unit'].")
+            calibration["board_params"] = {"unit": None}
+            return calibration
+        elif "unit" not in calibration["board_params"]:
+            warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
+                          " unit in calibration['board_params']['unit'].")
+            calibration["board_params"]["unit"] = None
+            return calibration
+
+        factor_dict = {
+            "m": {
+                "cm": 1e2,
+                "mm": 1e3,
+            },
+            "cm": {
+                "m": 1e-2,
+                "mm": 1e1,
+            },
+            "mm": {
+                "m": 1e-3,
+                "cm": 1e-1,
+            },
+        }
+
+        factor = factor_dict[calibration["board_params"]["unit"]][unit]
+        calibration["board_params"]["unit"] = unit
+        for calib in calibration["calibs"]:
+            calib["tvec_cam"] *= factor
+        for key in calibration["board_params"]:
+            if key.endswith("_real"):
+                calibration["board_params"][key] *= factor
+        if "info" in calibration:
+            calibration["info"]["tvecs_boards"] *= factor
+
+        return calibration
 
     @staticmethod
     def load_dict(filename):
         if filename.endswith('.npy'):
-            calibs = np.load(filename, allow_pickle=True)[()]["calibs"]
+            calibration = np.load(filename, allow_pickle=True)[()]
         elif filename.endswith('.yml'):
             with open(filename, 'r') as stream:
-                calibs = yaml.safe_load(stream)["calibs"]
-                calibs = collection_to_array(calibs)
-        return calibs
+                calibration = yaml.safe_load(stream)
+                calibration["calibs"] = collection_to_array(calibration["calibs"])
+        return calibration
 
     @staticmethod
     def from_calibcam_file(filename: str):
@@ -231,8 +278,8 @@ class Camerasystem:
         return cs
 
     @staticmethod
-    def from_calibs(calibs):
-        cs = Camerasystem()
+    def from_calibs(calibs, unit=None):
+        cs = Camerasystem(unit=unit)
 
         for calib in calibs:
             cs.add_camera(calib['A'],
