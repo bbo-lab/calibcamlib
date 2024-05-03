@@ -30,9 +30,12 @@ class Camerasystem:
 
         for i, (c, o) in enumerate(zip(self.cameras, offsets)):
             coords_cam = (c['R'] @ X.T).T + c['t']
-            x[i] = c['camera'].space_to_sensor(coords_cam, o).T.T
+            x[i] = c['camera'].space_to_sensor(coords_cam, o)
 
         return x.reshape((len(self.cameras),) + X_shape[0:-1] + (2,))
+
+    def get_camera_positions(self):
+        return np.array([- c['t'] @ c['R'] for c in self.cameras])
 
     def project_dir(self, V, offsets=None):
         # Project directions in space of shape np.array((..., 3)) to all cameras.
@@ -210,13 +213,13 @@ class Camerasystem:
         if unit == None:
             return calibration
         elif "board_params" not in calibration:
-            warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
-                          " unit in calibration['board_params']['unit'].")
+            # warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
+            #               " unit in calibration['board_params']['unit'].")
             calibration["board_params"] = {"unit": None}
             return calibration
         elif "unit" not in calibration["board_params"]:
-            warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
-                          " unit in calibration['board_params']['unit'].")
+            # warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
+            #               " unit in calibration['board_params']['unit'].")
             calibration["board_params"]["unit"] = None
             return calibration
 
