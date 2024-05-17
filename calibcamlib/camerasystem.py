@@ -1,4 +1,5 @@
 import warnings
+from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -29,10 +30,33 @@ class Camerasystem:
         x = np.zeros(shape=(len(self.cameras), X.shape[0], 2))
 
         for i, (c, o) in enumerate(zip(self.cameras, offsets)):
-            coords_cam = (c['R'] @ X.T).T + c['t']
-            x[i] = c['camera'].space_to_sensor(coords_cam, o)
+            X_cam = self.camsystem_to_cam(X, i)
+            x[i] = c['camera'].space_to_sensor(X_cam, o)
 
         return x.reshape((len(self.cameras),) + X_shape[0:-1] + (2,))
+
+    def camsystem_to_cam(self, X_world, cam_idx, normalize=False):
+        X_world_shape = X_world.shape
+
+        # TODO: Rewrite this to just keep dimensions
+        if len(X_world_shape) != 2:
+            assert X_world_shape[-1] == 3, "Input vector must have dimension 3"
+            X_world = X_world.reshape(-1, 3)
+
+        X_cam = (self.cameras[cam_idx]['R'] @ X_world.T).T + self.cameras[cam_idx]['t']
+
+        if normalize:
+            X_cam /= np.linalg.norm(X_cam, axis=-1, keepdims=True)
+
+        if len(X_world_shape) != 2:
+            X_cam = X_cam.reshape(X_world_shape)
+
+        return X_cam
+
+    def get_camsystem_to_cam_transformation(self, cam_idx):
+        from bbo.geometry import RigidTransform
+        return RigidTransform(rotation=self.cameras[cam_idx]['R'], translation=self.cameras[cam_idx]['t'],
+                              rotation_type="matrix")
 
     def get_camera_positions(self):
         return np.array([- c['t'] @ c['R'] for c in self.cameras])
@@ -113,16 +137,16 @@ class Camerasystem:
                 X[i_point] = np.nan
             else:
                 res = least_squares(self.repro_error, X[i_point],
-                              method='lm',
-                              verbose=0,
-                              args=[x[:,i_point]],
-                              kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+                                    method='lm',
+                                    verbose=0,
+                                    args=[x[:, i_point]],
+                                    kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
                 X[i_point] = res.x
 
         return X.reshape(x_shape[1:-1] + (3,))
 
     def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False):
-        err = self.project(X, offsets)-x_orig
+        err = self.project(X, offsets) - x_orig
         if nan_to_zero:
             err[np.isnan(err)] = 0
         if ravel:
@@ -202,7 +226,8 @@ class Camerasystem:
         return points
 
     @staticmethod
-    def load(filename: str, unit=None):
+    def load(filename: str | Path, unit=None):
+        filename = Path(filename)
         calibration = Camerasystem.load_dict(filename)
         calibration = Camerasystem.adjust_calibration_unit(calibration, unit)
         return Camerasystem.from_calibs(calibration["calibs"],
@@ -210,9 +235,7 @@ class Camerasystem:
 
     @staticmethod
     def adjust_calibration_unit(calibration, unit):
-        if unit == None:
-            return calibration
-        elif "board_params" not in calibration:
+        if "board_params" not in calibration:
             # warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
             #               " unit in calibration['board_params']['unit'].")
             calibration["board_params"] = {"unit": None}
@@ -221,6 +244,8 @@ class Camerasystem:
             # warnings.warn("Unit of calibration could not be determined! Returning as is. Avoid this message by adding a"
             #               " unit in calibration['board_params']['unit'].")
             calibration["board_params"]["unit"] = None
+            return calibration
+        elif unit is None:
             return calibration
 
         factor_dict = {
@@ -251,19 +276,22 @@ class Camerasystem:
         return calibration
 
     @staticmethod
-    def load_dict(filename):
-        if filename.endswith('.npy'):
-            calibration = np.load(filename, allow_pickle=True)[()]
-        elif filename.endswith('.yml'):
+    def load_dict(filename: str | Path):
+        filename = Path(filename)
+        if filename.suffix == '.npy':
+            calibration = np.load(filename.as_posix(), allow_pickle=True)[()]
+        elif filename.suffix == '.yml':
             with open(filename, 'r') as stream:
                 calibration = yaml.safe_load(stream)
                 calibration["calibs"] = collection_to_array(calibration["calibs"])
         return calibration
 
     @staticmethod
-    def from_calibcam_file(filename: str):
+    def from_calibcam_file(filename: str | Path):
+        filename = Path(filename)
+
         cs = Camerasystem()
-        calib = np.load(filename, allow_pickle=True)[()]
+        calib = np.load(filename.as_posix(), allow_pickle=True)[()]
 
         for i in range(len(calib['RX1_fit'])):
             A = np.array([

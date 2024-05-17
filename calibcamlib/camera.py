@@ -16,6 +16,10 @@ class Camera:
         if offset is None:
             offset = self.offset
 
+        x_shape = x.shape
+        if len(x_shape) != 2:
+            x = x.reshape((-1, 2))
+
         X = np.empty(shape=(x.shape[0], 3))
         if np.all(np.isnan(x)):
             X.fill(np.nan)
@@ -41,11 +45,18 @@ class Camera:
         X = X*a
         X[..., (2,)] = X[..., (2,)] - self.xi
 
+        if len(x_shape) != 2:
+            X = X.reshape(x_shape[:-1]+(3,))
+
         return X
 
     def space_to_sensor(self, X, offset=None):
         if offset is None:
             offset = self.offset
+
+        X_shape = X.shape
+        if len(X_shape) != 2:
+            X = X.reshape((-1, 3))
 
         if np.all(np.isnan(X)):
             return np.full((X.shape[0], 2), np.nan)
@@ -60,6 +71,10 @@ class Camera:
         x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
 
         x = x @ self.A.T
+        x = x[:, 0:2] - offset
 
-        return x[:, 0:2] - offset
+        if len(X_shape) != 2:
+            x = x.reshape(X_shape[:-1]+(2,))
+
+        return x
 

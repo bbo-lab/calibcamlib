@@ -27,24 +27,25 @@ def numpy_collection_to_list(collection, do_copy=True):
     return collection
 
 
-def collection_to_array(input, do_copy=True):
+def collection_to_array(collection_in, do_copy=True):
     if do_copy:
-        input = deepcopy(input)
-    if isinstance(input, list):
-        if np.array(input).dtype == "O":
+        collection_in = deepcopy(collection_in)
+    if isinstance(collection_in, list):
+        if np.array(collection_in).dtype == "O":
             new_list = []
-            for i in input:
-                new_list.append(collection_to_array(i), do_copy=False)
+            for i in collection_in:
+                new_list.append(collection_to_array(i))
             return new_list
         else:
-            return np.array(input)
-    elif isinstance(input, dict):
-        for ky in input.keys():
-            input[ky] = collection_to_array(input[ky], do_copy=False)
-        return input
-    elif isinstance(input, tuple):
-        for ky in input.keys():
-            input[ky] = collection_to_array(input[ky], do_copy=False)
-        return input
+            return np.array(collection_in)
+    elif isinstance(collection_in, dict):
+        for ky in collection_in.keys():
+            collection_in[ky] = collection_to_array(collection_in[ky], do_copy=False)
+        return collection_in
+    elif isinstance(collection_in, tuple):
+        input_new = []
+        for ky in collection_in:
+            input_new.append(collection_to_array(collection_in[ky], do_copy=False))
+        return tuple(input_new)
     else:
-        return input
+        return collection_in
