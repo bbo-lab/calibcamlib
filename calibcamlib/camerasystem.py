@@ -8,6 +8,7 @@ import yaml
 from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 from calibcamlib.yaml_helper import collection_to_array
+from collections.abc import Iterable
 
 
 # R,t are world->cam
@@ -22,19 +23,30 @@ class Camerasystem:
     def project(self, X, offsets=None, cam_idx=None):
         # Project points in space of shape np.array((..., 3)) to all cameras.
         # Returns image coordinates np.array((N_CAMS, ..., 2))
-        if offsets is None:
-            offsets = [None for _ in self.cameras]
 
         X_shape = X.shape
         assert X_shape[-1] == 3, f"Vectors have to be in 3d-space, last dimension was {X_shape[-1]}"
         X = X.reshape(-1, 3)
-        x = np.zeros(shape=(len(self.cameras), X.shape[0], 2))
 
-        for i, (c, o) in enumerate(zip(self.cameras, offsets)):
+        if cam_idx is None:
+            cam_idx = self.cameras
+            cam_shape = (len(cam_idx),)
+        elif isinstance(cam_idx, Iterable):
+            cam_idx = [self.cameras[idx] for idx in cam_idx]
+            cam_shape = (len(cam_idx),)
+        else:
+            cam_idx = [self.cameras[cam_idx]]
+            cam_shape = ()
+        x = np.zeros(shape=(len(cam_idx), X.shape[0], 2), dtype=float)
+
+        if offsets is None:
+            offsets = np.full(shape=len(cam_idx), fill_value = None)
+
+        for i, (c, o) in enumerate(zip(cam_idx, offsets)):
             X_cam = self.camsystem_to_cam(X, i)
             x[i] = c['camera'].space_to_sensor(X_cam, o)
 
-        return x.reshape((len(self.cameras),) + X_shape[0:-1] + (2,))
+        return x.reshape((*cam_shape, *X_shape[0:-1],2))
 
     def camsystem_to_cam(self, X_world, cam_idx, normalize=False):
         X_world_shape = X_world.shape
