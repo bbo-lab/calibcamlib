@@ -19,13 +19,14 @@ class Camerasystem:
     def add_camera(self, A, k, rotmat, t, xi=0):
         self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
 
-    def project(self, X, offsets=None):
+    def project(self, X, offsets=None, cam_idx=None):
         # Project points in space of shape np.array((..., 3)) to all cameras.
         # Returns image coordinates np.array((N_CAMS, ..., 2))
         if offsets is None:
             offsets = [None for _ in self.cameras]
 
         X_shape = X.shape
+        assert X_shape[-1] == 3, f"Vectors have to be in 3d-space, last dimension was {X_shape[-1]}"
         X = X.reshape(-1, 3)
         x = np.zeros(shape=(len(self.cameras), X.shape[0], 2))
 
@@ -102,6 +103,8 @@ class Camerasystem:
         # Returns directions from camera np.array((..., 3)) and camera position (tiles to dirs) np.array((..., 3))
         #  in world coordinates.
         # This differes from Camera.sensor_to_space in the translation to world coordinates and the cam pos output
+
+        #TODO documentation is incorrect, does only allow flattened arrays
         c = self.cameras[cam_idx]
         V = c['camera'].sensor_to_space(x, offset) @ c['R']
         P = np.tile(- c['t'] @ c['R'], (x.shape[0], 1))
