@@ -362,3 +362,15 @@ class Camerasystem:
                           (-mc['Tglobal'][i_cal] @ mc['Rglobal'][i_cal]).reshape(1, 3)
                           )
         return cs
+
+
+def strip_calibs(calibs):
+    # Strips the calibration down to the minimal info necessary by calibcamlib and calibcam
+    calibs_new = []
+    parameters = ["A", "k", "xi", "rvec_cam", "tvec_cam"]
+    for c in calibs:
+        calib_new = {}
+        for param in parameters:
+            calib_new[param] = c[param]
+        calibs_new.append(calib_new)
+    return calibs_new

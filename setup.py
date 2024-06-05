@@ -9,7 +9,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="bbo-calibcamlib",
-    version="0.3.7",
+    version="0.3.9",
     description="Library to work with calibration from bbo-calibcam",
     long_description=README,
     long_description_content_type="text/markdown",
