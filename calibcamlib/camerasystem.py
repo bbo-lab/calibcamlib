@@ -87,8 +87,8 @@ class Camerasystem:
         x = np.zeros(shape=(len(self.cameras), V.shape[0], 2))
 
         for i, (c, o) in enumerate(zip(self.cameras, offsets)):
-            coords_cam = (c['R'] @ V.T).T
-            x[i] = c['camera'].space_to_sensor(coords_cam, o).T.T
+            coords_cam = V @ c['R'].T
+            x[i] = c['camera'].space_to_sensor(coords_cam, o)
 
         return x.reshape((len(self.cameras),) + V_shape[0:-1] + (2,))
 
