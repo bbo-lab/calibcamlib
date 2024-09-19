@@ -132,7 +132,7 @@ class Camerasystem:
         V, P = self.get_camera_lines(x, offsets)
 
         X = np.empty(V.shape[1:])
-        X[:] = np.NaN
+        X[:] = np.nan
 
         for i, Xp in enumerate(X):
             if np.sum(~np.isnan(V[:, i, 1])) > 1:
@@ -191,14 +191,14 @@ class Camerasystem:
             return np.zeros((0, 3))
 
         cam_bases = np.empty((len(AB), 3))
-        cam_bases[:] = np.NaN
+        cam_bases[:] = np.nan
 
         full_ab = np.empty((len(AB), n_AB[main_cam_idx], 2))
-        full_ab[:] = np.NaN
+        full_ab[:] = np.nan
         full_ab[main_cam_idx] = AB[main_cam_idx]
 
         full_dirs = np.empty((len(AB), n_AB[main_cam_idx], 3))
-        full_dirs[:] = np.NaN
+        full_dirs[:] = np.nan
         full_dirs[main_cam_idx, :, :], cb = self.get_camera_lines_cam(AB[main_cam_idx],
                                                                       main_cam_idx,
                                                                       offsets[main_cam_idx])

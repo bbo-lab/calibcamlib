@@ -23,8 +23,13 @@ def distort(boards_coords_ideal, ks):
 
 def distort_inverse(ab_dist, k):
     n = ab_dist.shape[0]
+
     s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
+    s_0_mask = s==0
+    if np.all(s_0_mask):
+        return ab_dist
     r = np.zeros(n)
+
 
     for u in np.where(s > 0)[0]:
         rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
@@ -34,6 +39,7 @@ def distort_inverse(ab_dist, k):
         else:
             r[u] = np.min(np.real(rts[rtsind]))
     ab = ab_dist * (r / s)[:, np.newaxis]
+    ab[s_0_mask] = ab_dist[s_0_mask] 
 
     if np.all(k[2:4] == 0):
         return ab

@@ -9,7 +9,7 @@ def get_line_dist(r1, e1, r2, e2):
 
 def intersect(bases, vecs):
     p = np.empty(3)
-    p[:] = np.NaN
+    p[:] = np.nan
 
     ray_ok = ~np.any([
         np.isnan(bases),
