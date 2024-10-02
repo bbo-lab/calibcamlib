@@ -9,6 +9,7 @@ from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 from calibcamlib.yaml_helper import collection_to_array
 from collections.abc import Iterable
+from bbo.geometry import Line
 
 
 # R,t are world->cam
@@ -110,17 +111,20 @@ class Camerasystem:
 
         return V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
 
-    def get_camera_lines_cam(self, x, cam_idx, offset=None):
+    def get_camera_lines_cam(self, x, cam_idx, offset=None, use_geometry=False):
         # Get camera lines corresponding to image coordinates in shape np.array((..., 2)) for camera cam_idx.
         # Returns directions from camera np.array((..., 3)) and camera position (tiles to dirs) np.array((..., 3))
         #  in world coordinates.
         # This differes from Camera.sensor_to_space in the translation to world coordinates and the cam pos output
-
+        x_shape = x.shape
+        x = x.reshape((x_shape[0], -1, 2))
         #TODO documentation is incorrect, does only allow flattened arrays
         c = self.cameras[cam_idx]
         V = c['camera'].sensor_to_space(x, offset) @ c['R']
         P = np.tile(- c['t'] @ c['R'], (x.shape[0], 1))
-
+        V, P = V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
+        if use_geometry:
+            return Line(position=P, direction=V)
         return V, P
 
     def triangulate_3derr(self, x, offsets=None):
@@ -263,22 +267,10 @@ class Camerasystem:
         elif unit is None:
             return calibration
 
-        factor_dict = {
-            "m": {
-                "cm": 1e2,
-                "mm": 1e3,
-            },
-            "cm": {
-                "m": 1e-2,
-                "mm": 1e1,
-            },
-            "mm": {
-                "m": 1e-3,
-                "cm": 1e-1,
-            },
-        }
 
-        factor = factor_dict[calibration["board_params"]["unit"]][unit]
+        factor_dict = {"m": 1, "cm": 0.01, "mm": 0.001}
+
+        factor = factor_dict[calibration["board_params"]["unit"]]/factor_dict[unit]
         calibration["board_params"]["unit"] = unit
         for calib in calibration["calibs"]:
             calib["tvec_cam"] *= factor
@@ -286,7 +278,7 @@ class Camerasystem:
             if key.endswith("_real"):
                 calibration["board_params"][key] *= factor
         if "info" in calibration:
-            calibration["info"]["tvecs_boards"] *= factor
+            calibration["info"]["tvecs_boards"] = (np.asarray(calibration["info"]["tvecs_boards"]) * factor).tolist()
 
         return calibration
 
