@@ -57,7 +57,7 @@ class Camerasystem:
             assert X_world_shape[-1] == 3, "Input vector must have dimension 3"
             X_world = X_world.reshape(-1, 3)
 
-        X_cam = (self.cameras[cam_idx]['R'] @ X_world.T).T + self.cameras[cam_idx]['t']
+        X_cam = X_world @ self.cameras[cam_idx]['R'].T + self.cameras[cam_idx]['t']
 
         if normalize:
             X_cam /= np.linalg.norm(X_cam, axis=-1, keepdims=True)
