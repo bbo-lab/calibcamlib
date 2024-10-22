@@ -23,6 +23,7 @@ class Camera:
         X = np.empty(shape=(x.shape[0], 3))
         if np.all(np.isnan(x)):
             X.fill(np.nan)
+            X = X.reshape(x_shape[:-1] + (3,))
             return X
 
         # assert self.k[2] == 0 and self.k[3] == 0 and self.k[4] == 0
@@ -46,7 +47,7 @@ class Camera:
         X[..., (2,)] = X[..., (2,)] - self.xi
 
         if len(x_shape) != 2:
-            X = X.reshape(x_shape[:-1]+(3,))
+            X = X.reshape(x_shape[:-1] + (3,))
 
         return X
 
