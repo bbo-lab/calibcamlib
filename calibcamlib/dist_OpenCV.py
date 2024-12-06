@@ -20,6 +20,39 @@ def distort(boards_coords_ideal, ks):
 
     return boards_coords_dist
 
+def vectorized_roots(polynomials):
+    """
+    Compute the roots of multiple polynomials given their coefficients, assuming all polynomials
+    have the same length and the first coefficients are non-zero.
+
+    Parameters
+    ----------
+    polynomials : ndarray, shape (M, N)
+        A 2D array where each row represents the coefficients of a polynomial.
+
+    Returns
+    -------
+    roots : ndarray, shape (M, K)
+        A 2D array where each row contains the roots of the corresponding polynomial.
+        Extra zeros are appended for polynomials with fewer roots than the maximum degree.
+    """
+    polynomials = np.asarray(polynomials)
+    if polynomials.ndim != 2:
+        raise ValueError("Input must be a 2D array where each row represents a polynomial.")
+
+    M, N = polynomials.shape
+
+    # Build companion matrices for all polynomials
+    companion_matrices = np.zeros((M, N - 1, N - 1), dtype=polynomials.dtype)
+    for i in range(N - 2):
+        companion_matrices[:, i + 1, i] = 1  # Set sub-diagonal to 1
+
+    companion_matrices[:, 0, :] = -polynomials[:, 1:] / polynomials[:, 0, None]
+
+    # Compute eigenvalues (roots) for all companion matrices
+    roots = np.linalg.eigvals(companion_matrices)
+    return roots
+
 
 def distort_inverse(ab_dist, k):
     n = ab_dist.shape[0]
@@ -30,20 +63,31 @@ def distort_inverse(ab_dist, k):
         return ab_dist
     r = np.full(n, fill_value=np.nan)
 
-    coefficients = np.stack([
-        np.full(n, fill_value=k[4]),
-        np.zeros(n),
-        np.full(n, fill_value=k[1]),
-        np.zeros(n),
-        np.full(n, fill_value=k[0]),
-        np.zeros(n),
-        np.ones(n),
-        -s], axis=1)
-
+    valid_coefficients = []
     valid_indices = np.where(s > 0)[0]
-    valid_coefficients = coefficients[valid_indices]
+    z = np.zeros(len(valid_indices))
+    num_valid = len(valid_indices)
+    keep_trailing_zeros = False
+    vectorized = True
 
-    roots = np.array([np.roots(c) for c in valid_coefficients])  # TODO this is very slow
+    valid_coefficients.append(-s[valid_indices])
+    valid_coefficients.append(np.ones(num_valid))
+    if k[0] != 0 or keep_trailing_zeros:
+        valid_coefficients.append(z)
+        valid_coefficients.append(np.full(num_valid, fill_value=k[0]))
+        if k[1] != 0 or keep_trailing_zeros:
+            valid_coefficients.append(z)
+            valid_coefficients.append(np.full(num_valid, fill_value=k[1]))
+            if k[4] != 0 or keep_trailing_zeros:
+                valid_coefficients.append(z)
+                valid_coefficients.append(np.full(num_valid, fill_value=k[4]))
+
+    valid_coefficients = np.stack(valid_coefficients[::-1], axis=1)
+
+    if vectorized:
+        roots = vectorized_roots(valid_coefficients)
+    else:
+        roots = np.array([np.roots(c) for c in valid_coefficients])  # this is very slow
 
     is_real = np.isreal(roots)
     is_non_negative = roots >= 0
