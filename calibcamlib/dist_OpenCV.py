@@ -28,18 +28,35 @@ def distort_inverse(ab_dist, k):
     s_0_mask = s==0
     if np.all(s_0_mask):
         return ab_dist
-    r = np.zeros(n)
+    r = np.full(n, fill_value=np.nan)
 
+    coefficients = np.stack([
+        np.full(n, fill_value=k[4]),
+        np.zeros(n),
+        np.full(n, fill_value=k[1]),
+        np.zeros(n),
+        np.full(n, fill_value=k[0]),
+        np.zeros(n),
+        np.ones(n),
+        -s], axis=1)
 
-    for u in np.where(s > 0)[0]:
-        rts = np.roots(np.array([k[4], 0, k[1], 0, k[0], 0, 1, -s[u]]))
-        rtsind = np.all([np.imag(rts) == 0, rts >= 0], axis=0)
-        if not np.any(rtsind):
-            r[u] = np.nan
-        else:
-            r[u] = np.min(np.real(rts[rtsind]))
+    valid_indices = np.where(s > 0)[0]
+    valid_coefficients = coefficients[valid_indices]
+
+    roots = np.array([np.roots(c) for c in valid_coefficients])  # TODO this is very slow
+
+    is_real = np.isreal(roots)
+    is_non_negative = roots >= 0
+    valid_mask = np.logical_and(is_real, is_non_negative)
+
+    valid_roots = np.where(valid_mask, np.real(roots), np.inf)
+
+    min_roots = np.min(valid_roots, axis=1)
+
+    r[valid_indices] = min_roots
+
     ab = ab_dist * (r / s)[:, np.newaxis]
-    ab[s_0_mask] = ab_dist[s_0_mask] 
+    ab[s_0_mask] = ab_dist[s_0_mask]
 
     if np.all(k[2:4] == 0):
         return ab
@@ -56,6 +73,7 @@ def distort_inverse(ab_dist, k):
             ab_ud.append(sol[0])
 
         return np.array(ab_ud)
+
 
 
 def dist_opt_func(ab, ab_d, k):

@@ -17,7 +17,6 @@ def null_space_batch(vecs):
 
 
 def intersect(bases, vecs):
-    p = np.full(3, fill_value=np.nan)
     ray_ok = ~np.any([
         np.isnan(bases),
         np.isnan(vecs)
@@ -25,21 +24,20 @@ def intersect(bases, vecs):
 
     bases = bases[ray_ok]
     vecs = vecs[ray_ok]
-    n = bases.shape[0]
 
-    if n < 2:
-        return p
+    if bases.shape[0] < 2:
+        return np.full(3, fill_value=np.nan)
 
     # Compute the null space projection matrices
     M = null_space_batch(vecs)  # Shape: (n, 3, 3)
     # Compute Mbase[u] = M[u] @ bases[u] for all u
-    Mbase = np.einsum('...ij,...j->...i', M, bases)  # Shape: (n, 3)
     # Sum over all planes
     M_sum = np.sum(M, axis=0)  # Shape: (3, 3)
-    Mbase_sum = np.sum(Mbase, axis=0)  # Shape: (3,)
     # Check rank
     if np.linalg.matrix_rank(M_sum) < 3:
-        return p
+        return np.full(3, fill_value=np.nan)
+
+    Mbase_sum = np.einsum('kij,kj->i', M, bases)  # Shape: (n, 3)
     # Solve for intersection point
     return np.squeeze(np.linalg.solve(M_sum, Mbase_sum))
 

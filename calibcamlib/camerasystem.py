@@ -135,11 +135,10 @@ class Camerasystem:
 
         V, P = self.get_camera_lines(x, offsets)
 
-        X = np.empty(V.shape[1:])
-        X[:] = np.nan
+        X = np.full(V.shape[1:], np.nan)
 
         for i, Xp in enumerate(X):
-            if np.sum(~np.isnan(V[:, i, 1])) > 1:
+            if np.count_nonzero(~np.isnan(V[:, i, 1])) > 1:
                 X[i] = intersect(P[:, i, :], V[:, i, :]).T
 
         return X.reshape(x_shape[1:-1] + (3,))
