@@ -7,8 +7,6 @@ def get_line_dist(r1, e1, r2, e2):
     return np.abs(np.sum(n * (r1 - r2)))
 
 
-
-
 def intersect(bases, vecs):
     """
     Compute the intersection point of a set of lines in an arbitrary-dimensional space.
@@ -33,10 +31,7 @@ def intersect(bases, vecs):
     """
     bases = np.asarray(bases)
     vecs = np.asarray(vecs)
-    ray_ok = ~np.any([
-        np.isnan(bases),
-        np.isnan(vecs)
-    ], axis=(0, 2))
+    ray_ok = ~np.any(np.logical_or(np.isnan(bases),np.isnan(vecs)), axis=-1)
 
     bases = bases[ray_ok]
     vecs = vecs[ray_ok]
@@ -47,17 +42,16 @@ def intersect(bases, vecs):
 
     # Compute the null space projection matrices
     vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)  # Normalize vecs
-    M = np.einsum('...i,...j->...ij', vecs, vecs)  # Null space projection in 3D space
 
     # Compute Mbase[u] = M[u] @ bases[u] for all u
     # Sum over all planes
-    M_sum = np.eye(vecs.shape[1]) * n - np.sum(M, axis=0)  # Shape: (d, d)
+    M_sum = np.eye(vecs.shape[1]) * n - np.einsum('ki,kj->ij', vecs, vecs)  # Shape: (d, d)
     # Check rank
-    if np.linalg.matrix_rank(M_sum) < d:
+    if np.linalg.det(M_sum) < 1e-10:
         return np.full(d, fill_value=np.nan)
 
-    Mbase_sum = np.sum(bases,axis=0) - np.einsum('kij,kj->i', M, bases)  # Shape: (d)
-    # Solve for intersection point
+    Mbase_sum = np.sum(bases,axis=0) - np.dot(np.einsum('ij,ij->i',vecs, bases),vecs)  # Shape: (d)
+     # Solve for intersection point
     return np.linalg.solve(M_sum, Mbase_sum)
 
 
