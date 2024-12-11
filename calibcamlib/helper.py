@@ -7,16 +7,32 @@ def get_line_dist(r1, e1, r2, e2):
     return np.abs(np.sum(n * (r1 - r2)))
 
 
-def null_space_batch(vecs):
-    """
-    Compute the null space projection matrix for each vector in a batch.
-    Returns a batch of (3x3) projection matrices.
-    """
-    u = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)  # Normalize vecs
-    return np.eye(3) - np.einsum('...i,...j->...ij', u, u)  # Null space projection in 3D space
 
 
 def intersect(bases, vecs):
+    """
+    Compute the intersection point of a set of lines in an arbitrary-dimensional space.
+
+    Each line is defined by a base point and a direction vector.
+    The function calculates the intersection point by projecting the base points onto
+    the null spaces of the direction vectors, then solving the resulting linear system.
+
+    Parameters:
+    -----------
+    bases : numpy.ndarray
+        An array of shape (n, d) where each row represents the base point of a line in d-dimensional space.
+    vecs : numpy.ndarray
+        An array of shape (n, d) where each row represents the direction vector of a line in d-dimensional space.
+
+    Returns:
+    --------
+    numpy.ndarray
+        A 1D array of shape (d,) representing the intersection point of the lines.
+        If the input data is invalid, or if the lines do not intersect uniquely,
+        the function returns an array filled with NaN.
+    """
+    bases = np.asarray(bases)
+    vecs = np.asarray(vecs)
     ray_ok = ~np.any([
         np.isnan(bases),
         np.isnan(vecs)
@@ -24,22 +40,25 @@ def intersect(bases, vecs):
 
     bases = bases[ray_ok]
     vecs = vecs[ray_ok]
-
-    if bases.shape[0] < 2:
-        return np.full(3, fill_value=np.nan)
+    n = bases.shape[0]
+    d = bases.shape[1]
+    if n < 2:
+        return np.full(d, fill_value=np.nan)
 
     # Compute the null space projection matrices
-    M = null_space_batch(vecs)  # Shape: (n, 3, 3)
+    vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)  # Normalize vecs
+    M = np.einsum('...i,...j->...ij', vecs, vecs)  # Null space projection in 3D space
+
     # Compute Mbase[u] = M[u] @ bases[u] for all u
     # Sum over all planes
-    M_sum = np.sum(M, axis=0)  # Shape: (3, 3)
+    M_sum = np.eye(vecs.shape[1]) * n - np.sum(M, axis=0)  # Shape: (d, d)
     # Check rank
-    if np.linalg.matrix_rank(M_sum) < 3:
-        return np.full(3, fill_value=np.nan)
+    if np.linalg.matrix_rank(M_sum) < d:
+        return np.full(d, fill_value=np.nan)
 
-    Mbase_sum = np.einsum('kij,kj->i', M, bases)  # Shape: (n, 3)
+    Mbase_sum = np.sum(bases,axis=0) - np.einsum('kij,kj->i', M, bases)  # Shape: (d)
     # Solve for intersection point
-    return np.squeeze(np.linalg.solve(M_sum, Mbase_sum))
+    return np.linalg.solve(M_sum, Mbase_sum)
 
 
 def calc_3derr(X, P, V) -> (float, np.ndarray):
