@@ -58,15 +58,13 @@ def intersect(bases, vecs):
         identity = np.eye(vecs.shape[-1])[None, :, :]  # Shape (1, d, d)
         M_sum = valid_counts[:, None] * identity - np.einsum('mij,mik->mjk', vecs, vecs)
 
-        singular_mask = np.linalg.det(M_sum) < 1e-10
+        non_singular_mask = ~(np.linalg.det(M_sum) < 1e-10)
 
         proj = np.einsum('mij,mij->mi', vecs, bases)[..., None] * vecs
         Mbase_sum = np.sum(bases - proj, axis=1)
 
-        intersections = np.array([
-            np.linalg.solve(M_sum[i], Mbase_sum[i]) if not singular_mask[i] else np.full(vecs.shape[-1], np.nan)
-            for i in range(M_sum.shape[0])
-        ])
+        intersections = np.full((M_sum.shape[0], vecs.shape[-1]), np.nan)
+        intersections[non_singular_mask] = np.linalg.solve(M_sum[non_singular_mask], Mbase_sum[non_singular_mask])
         return intersections
 
 
