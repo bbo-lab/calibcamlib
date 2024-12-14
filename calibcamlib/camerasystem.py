@@ -137,9 +137,22 @@ class Camerasystem:
 
         X = np.full(V.shape[1:], np.nan)
 
-        for i, Xp in enumerate(X):
-            if np.count_nonzero(~np.isnan(V[:, i, 1])) > 1:
-                X[i] = intersect(P[:, i, :], V[:, i, :]).T
+        #Keeped old version for now, if we find any problems with the new code
+        vectorized = True
+        if vectorized:
+            # Swap axes for compatibility
+            P_swapped = np.swapaxes(P, 0, 1)  # Shape: (n, m, d) -> (m, n, d)
+            V_swapped = np.swapaxes(V, 0, 1)  # Shape: (n, m, d) -> (m, n, d)
+
+            # Identify valid columns
+            valid_columns = np.count_nonzero(~np.isnan(V_swapped[:, :, 1]), axis=1) > 1  # Shape: (m,)
+
+            # Compute intersections for valid columns
+            X[valid_columns] = intersect(P_swapped[valid_columns], V_swapped[valid_columns])
+        else:
+            for i, Xp in enumerate(X):
+                if np.count_nonzero(~np.isnan(V[:, i, 1])) > 1:
+                    X[i] = intersect(P[:, i, :], V[:, i, :]).T
 
         return X.reshape(x_shape[1:-1] + (3,))
 

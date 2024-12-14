@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 
 
 def get_line_dist(r1, e1, r2, e2):
@@ -31,28 +30,44 @@ def intersect(bases, vecs):
     """
     bases = np.asarray(bases)
     vecs = np.asarray(vecs)
-    ray_ok = ~np.any(np.logical_or(np.isnan(bases),np.isnan(vecs)), axis=-1)
+    ray_ok = ~np.any(np.isnan(bases) | np.isnan(vecs), axis=-1)
+    if len(bases.shape) == 2:
+        bases = bases[ray_ok]
+        vecs = vecs[ray_ok]
+        n = bases.shape[0]
+        d = bases.shape[1]
+        if n < 2:
+            return np.full(d, fill_value=np.nan)
 
-    bases = bases[ray_ok]
-    vecs = vecs[ray_ok]
-    n = bases.shape[0]
-    d = bases.shape[1]
-    if n < 2:
-        return np.full(d, fill_value=np.nan)
+        vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)  # Normalize vecs
 
-    # Compute the null space projection matrices
-    vecs = vecs / np.linalg.norm(vecs, axis=1, keepdims=True)  # Normalize vecs
+        M_sum = np.eye(vecs.shape[1]) * n - np.einsum('ki,kj->ij', vecs, vecs)  # Shape: (d, d)
+        # Check rank
+        if np.linalg.det(M_sum) < 1e-10:
+            return np.full(d, fill_value=np.nan)
 
-    # Compute Mbase[u] = M[u] @ bases[u] for all u
-    # Sum over all planes
-    M_sum = np.eye(vecs.shape[1]) * n - np.einsum('ki,kj->ij', vecs, vecs)  # Shape: (d, d)
-    # Check rank
-    if np.linalg.det(M_sum) < 1e-10:
-        return np.full(d, fill_value=np.nan)
+        Mbase_sum = np.sum(bases,axis=0) - np.dot(np.einsum('ij,ij->i',vecs, bases),vecs)  # Shape: (d)
+        return np.linalg.solve(M_sum, Mbase_sum)
+    else:
+        bases = np.where(ray_ok[..., None], bases, 0)
+        vecs = np.where(ray_ok[..., None], vecs, 0)
+        vecs_norm = np.linalg.norm(vecs, axis=-1, keepdims=True)
+        vecs = np.divide(vecs, vecs_norm, where=vecs_norm > 0)
 
-    Mbase_sum = np.sum(bases,axis=0) - np.dot(np.einsum('ij,ij->i',vecs, bases),vecs)  # Shape: (d)
-     # Solve for intersection point
-    return np.linalg.solve(M_sum, Mbase_sum)
+        valid_counts = np.sum(ray_ok, axis=-1, keepdims=True)
+        identity = np.eye(vecs.shape[-1])[None, :, :]  # Shape (1, d, d)
+        M_sum = valid_counts[:, None] * identity - np.einsum('mij,mik->mjk', vecs, vecs)
+
+        singular_mask = np.linalg.det(M_sum) < 1e-10
+
+        proj = np.einsum('mij,mij->mi', vecs, bases)[..., None] * vecs
+        Mbase_sum = np.sum(bases - proj, axis=1)
+
+        intersections = np.array([
+            np.linalg.solve(M_sum[i], Mbase_sum[i]) if not singular_mask[i] else np.full(vecs.shape[-1], np.nan)
+            for i in range(M_sum.shape[0])
+        ])
+        return intersections
 
 
 def calc_3derr(X, P, V) -> (float, np.ndarray):
