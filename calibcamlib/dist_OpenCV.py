@@ -109,9 +109,16 @@ def distort_inverse(ab_dist, k):
         #  scipy.optimize. If this function is used within a time-critical scope, this is probably slow
         from scipy.optimize import fsolve
 
+        try:
+            from numba import jit
+            dist_opt_func_compiled = jit(nopython=True)(dist_opt_func)
+        except ImportError:
+            jit = None
+            dist_opt_func_compiled = dist_opt_func
+
         ab_ud = []
         for p_o, p_d in zip(ab, ab_dist):
-            sol = fsolve(lambda p: dist_opt_func(p, p_d, k), p_o, full_output=True, maxfev=1000, xtol=1e-6)
+            sol = fsolve(lambda p: dist_opt_func_compiled(p, p_d, k), p_o, full_output=True, maxfev=1000, xtol=1e-6)
             # if not sol[2] == 1:
             #     print(sol[3])
             ab_ud.append(sol[0])
@@ -119,14 +126,16 @@ def distort_inverse(ab_dist, k):
         return np.array(ab_ud)
 
 
-
 def dist_opt_func(ab, ab_d, k):
     # This function is included in the unit tests and tested correct
     a = ab[0]
     b = ab[1]
-    r2 = (a ** 2 + b ** 2)
+    a2 = a ** 2
+    b2 = b ** 2
+    ab = a * b
+    r2 = a2 + b2
     rcoeff = 1 + k[0] * r2 + k[1] * r2 ** 2 + k[4] * r2 ** 3
     return (
-        2 * k[2] * a * b + k[3] * (3 * a ** 2 + b ** 2) + a * rcoeff - ab_d[0],
-        2 * k[3] * a * b + k[2] * (3 * b ** 2 + a ** 2) + b * rcoeff - ab_d[1]
+        2 * k[2] * ab + k[3] * (3 * a2 + b2) + a * rcoeff - ab_d[0],
+        2 * k[3] * ab + k[2] * (3 * b2 + a2) + b * rcoeff - ab_d[1]
     )
