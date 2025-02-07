@@ -9,7 +9,7 @@ from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 from calibcamlib.yaml_helper import collection_to_array
 from collections.abc import Iterable
-from bbo.geometry import Line
+from bbo.geometry import Line, RigidTransform
 
 
 # R,t are world->cam
@@ -67,7 +67,7 @@ class Camerasystem:
 
         return X_cam
 
-    def get_camsystem_to_cam_transformation(self, cam_idx):
+    def get_camsystem_to_cam_transformation(self, cam_idx) -> RigidTransform:
         from bbo.geometry import RigidTransform
         return RigidTransform(rotation=self.cameras[cam_idx]['R'], translation=self.cameras[cam_idx]['t'],
                               rotation_type="matrix")
