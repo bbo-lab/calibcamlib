@@ -64,7 +64,7 @@ def intersect(bases, vecs):
         Mbase_sum = np.sum(bases - proj, axis=1)
 
         intersections = np.full((M_sum.shape[0], vecs.shape[-1]), np.nan)
-        intersections[non_singular_mask] = np.linalg.solve(M_sum[non_singular_mask], Mbase_sum[non_singular_mask])
+        intersections[non_singular_mask] = np.linalg.solve(M_sum[non_singular_mask], Mbase_sum[non_singular_mask][..., np.newaxis])[...,0]
         return intersections
 
 

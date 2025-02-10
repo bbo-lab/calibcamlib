@@ -2,7 +2,6 @@ import unittest
 import numpy as np
 from calibcamlib.helper import intersect
 
-import pathlib
 
 class TestIntersec(unittest.TestCase):
     def test_intersect(self):
