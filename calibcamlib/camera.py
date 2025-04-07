@@ -60,7 +60,7 @@ class Camera:
             X = X.reshape((-1, 3))
 
         if np.all(np.isnan(X)):
-            return np.full((X.shape[0], 2), np.nan)
+            return np.full((*X_shape[:-1], 2), np.nan)
 
         if not self.xi == 0:
             norm = np.linalg.norm(X, axis=-1, keepdims=True)
