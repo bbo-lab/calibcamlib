@@ -54,7 +54,7 @@ def intersect(bases, vecs):
         vecs_norm = np.linalg.norm(vecs, axis=-1, keepdims=True)
         vecs = np.divide(vecs, vecs_norm, where=vecs_norm > 0)
 
-        valid_counts = np.sum(ray_ok, axis=-1, keepdims=True)
+        valid_counts = np.count_nonzero(ray_ok, axis=-1, keepdims=True)
         identity = np.eye(vecs.shape[-1])[None, :, :]  # Shape (1, d, d)
         M_sum = valid_counts[:, None] * identity - np.einsum('mij,mik->mjk', vecs, vecs)
 
