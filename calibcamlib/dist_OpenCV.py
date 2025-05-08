@@ -61,21 +61,20 @@ def distort_inverse(ab_dist, k):
     s_0_mask = s==0
     if np.all(s_0_mask):
         return ab_dist
-    r = np.full(n, fill_value=np.nan)
 
     valid_coefficients = []
     valid_indices = np.where(s > 0)[0]
-    z = np.zeros(len(valid_indices))
     num_valid = len(valid_indices)
     keep_trailing_zeros = False
     vectorized = True
 
     valid_coefficients.append(-s[valid_indices])
     valid_coefficients.append(np.ones(num_valid))
-    if k[0] != 0 or keep_trailing_zeros:
+    if np.any(k[[0,1,4]] != 0) or keep_trailing_zeros:
+        z = np.zeros(num_valid)
         valid_coefficients.append(z)
         valid_coefficients.append(np.full(num_valid, fill_value=k[0]))
-        if k[1] != 0 or keep_trailing_zeros:
+        if np.any(k[[1,4]]) != 0 or keep_trailing_zeros:
             valid_coefficients.append(z)
             valid_coefficients.append(np.full(num_valid, fill_value=k[1]))
             if k[4] != 0 or keep_trailing_zeros:
@@ -97,6 +96,7 @@ def distort_inverse(ab_dist, k):
 
     min_roots = np.min(valid_roots, axis=1)
 
+    r = np.full(n, fill_value=np.nan)
     r[valid_indices] = min_roots
 
     ab = ab_dist * (r / s)[:, np.newaxis]
