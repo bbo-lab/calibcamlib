@@ -90,3 +90,10 @@ class Camera:
 
         return x
 
+    def as_dict(self):
+        return {
+            "A": self.A,
+            "k": self.k,
+            "xi": self.xi,
+            "offset": self.offset,
+        }

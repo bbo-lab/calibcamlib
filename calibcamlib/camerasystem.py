@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import warnings
 from pathlib import Path
 
@@ -9,7 +11,7 @@ from calibcamlib import Camera
 from calibcamlib.helper import intersect, get_line_dist
 from calibcamlib.yaml_helper import collection_to_array
 from collections.abc import Iterable
-from bbo.geometry import Line, RigidTransform
+from bbo.geometry import Line, RigidTransform, AffineTransformation, Reflection
 
 
 # R,t are world->cam
@@ -20,6 +22,22 @@ class Camerasystem:
 
     def add_camera(self, A, k, rotmat, t, xi=0):
         self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
+
+    def get_cam_as_dict(self, cam_idx):
+        calib = self.cameras[cam_idx]["camera"].as_dict()
+        calib["rvec_cam"] = self.cameras[cam_idx]["R"]
+        calib["tvec_cam"] = self.cameras[cam_idx]["t"]
+        return calib
+
+    def created_cam_through_mirror(self, cam_idx, mirror):
+        calib = created_cam_through_mirror(self.get_cam_as_dict(cam_idx), mirror)
+        return (
+            Camera(calib['A'], calib['k'], xi=calib.get('xi', 0)),
+            RigidTransform(
+                rotation=R.from_rotvec(calib['rvec_cam'].reshape((3,))),
+                translation=calib['tvec_cam'].reshape(1, 3),
+            )
+        )
 
     def project(self, X, offsets=None, cam_idx=None):
         # Project points in space of shape np.array((..., 3)) to all cameras.
@@ -385,3 +403,17 @@ def strip_calibs(calibs):
             calib_new[param] = c[param]
         calibs_new.append(calib_new)
     return calibs_new
+
+
+def created_cam_through_mirror(calib, mirror):
+    calib = deepcopy(calib)
+    headcam2headcammirrored = mirror
+    headcam2subcam_trafo = RigidTransform(rotation=R.from_rotvec(calib["rvec_cam"].copy()),
+                                          translation=calib["tvec_cam"].copy())
+    subcam2subcammirrored = AffineTransformation(Reflection(normal=np.array([1, 0, 0])))
+    cam_trafo = RigidTransform.from_matrix(  # Convert to RigidTransformation
+        (subcam2subcammirrored * headcam2subcam_trafo * headcam2headcammirrored).as_matrix())
+    calib["rvec_cam"] = cam_trafo.get_rotation().as_rotvec().reshape((3,))
+    calib["tvec_cam"] = cam_trafo.get_translation().reshape((3,))
+    calib["A"][0, 0] *= -1
+    return calib
