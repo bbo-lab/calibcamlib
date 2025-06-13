@@ -303,12 +303,14 @@ class Camerasystem:
     def load_dict(filename: str | Path):
         filename = Path(filename)
         if filename.suffix == '.npy':
-            calibration = np.load(filename.as_posix(), allow_pickle=True)[()]
+            return np.load(filename.as_posix(), allow_pickle=True)[()]
         elif filename.suffix == '.yml':
             with open(filename, 'r') as stream:
                 calibration = yaml.safe_load(stream)
                 calibration["calibs"] = collection_to_array(calibration["calibs"])
-        return calibration
+                return calibration
+        raise ValueError(f"Unsupported file format: {filename.suffix}. Supported formats are .npy and .yml.")
+
 
     @staticmethod
     def from_calibcam_file(filename: str | Path):
