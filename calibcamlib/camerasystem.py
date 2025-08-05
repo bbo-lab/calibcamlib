@@ -269,11 +269,11 @@ class Camerasystem:
         if full_dirs.shape[1] == 0:
             return np.zeros((0, 3))
 
-        #Keep old implementation because code is not tested
-        broadcast = True
+        #Broadcasting appears to be slower and is currently insufficiently tested.
+        broadcast = False
         if broadcast:
             full_dirs = np.swapaxes(full_dirs, 0, 1)
-            points = intersect(np.tile(cam_bases[np.newaxis], full_dirs.shape[0]), full_dirs)
+            points = intersect(cam_bases[np.newaxis], full_dirs)
         else:
             points = np.array([intersect(cam_bases, full_dirs[:, i, :]) for i in range(full_dirs.shape[1])])
         points = points[~np.any(np.isnan(points), axis=1)]
