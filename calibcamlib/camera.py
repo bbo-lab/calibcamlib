@@ -4,6 +4,8 @@ from calibcamlib import distortion as dist  # TODO: make model variable
 
 class Camera:
     def __init__(self, A, k, xi=0, offset=None, distortion=None):  # TODO: Implement variable distortion
+        if distortion is not None:
+            raise ValueError("Distortion parameter is not implemented yet.")
         if offset is None:
             offset = [0, 0]
 
@@ -61,13 +63,15 @@ class Camera:
 
         return X
 
-    def space_to_sensor(self, X, offset=None):
+    def space_to_sensor(self, X, offset=None, check_inverse=False):
         if offset is None:
             offset = self.offset
 
         X_shape = X.shape
         if len(X_shape) != 2:
             X = X.reshape((-1, 3))
+
+        original_space_coords = X
 
         if np.all(np.isnan(X)):
             return np.full((*X_shape[:-1], 2), np.nan)
@@ -78,12 +82,23 @@ class Camera:
             #X = np.divide(X, norm, where=norm!=0)
             X[..., (2,)] = X[..., (2,)] + self.xi
 
+
         # code from calibcam.multical_plot.project_board
-        x = X / X[:, 2, np.newaxis]
+        x = X / X[:, (2,)]
         x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
 
         x = x @ self.A.T
         x = x[:, 0:2] - offset
+
+        if check_inverse:
+            space_loc = self.sensor_to_space(x, offset=offset)
+            # set all locations that are not close to the mothds input to nan
+            original_space_coords = original_space_coords / np.linalg.norm(original_space_coords, axis=-1,
+                                                                           keepdims=True)
+            space_coords = space_loc / np.linalg.norm(space_loc, axis=-1, keepdims=True)
+            nanmask = ~np.isnan(original_space_coords).any(axis=-1)
+            close_mask = np.linalg.norm(space_loc - original_space_coords, axis=-1) < 1e-5
+            x[~close_mask] = np.nan
 
         if len(X_shape) != 2:
             x = x.reshape(X_shape[:-1]+(2,))

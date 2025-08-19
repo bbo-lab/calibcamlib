@@ -39,7 +39,7 @@ class Camerasystem:
             )
         )
 
-    def project(self, X, offsets=None, cam_idx=None):
+    def project(self, X, offsets=None, cam_idx=None, check_inverse = False):
         # Project points in space of shape np.array((..., 3)) to all cameras.
         # Returns image coordinates np.array((N_CAMS, ..., 2))
 
@@ -48,22 +48,22 @@ class Camerasystem:
         X = X.reshape(-1, 3)
 
         if cam_idx is None:
-            cam_idx = self.cameras
+            cam_idx = np.arange(len(self.cameras))
             cam_shape = (len(cam_idx),)
         elif isinstance(cam_idx, Iterable):
-            cam_idx = [self.cameras[idx] for idx in cam_idx]
+            cam_idx = list(cam_idx)
             cam_shape = (len(cam_idx),)
         else:
-            cam_idx = [self.cameras[cam_idx]]
+            cam_idx = [cam_idx]
             cam_shape = ()
-        x = np.zeros(shape=(len(cam_idx), X.shape[0], 2), dtype=float)
-
         if offsets is None:
             offsets = np.full(shape=len(cam_idx), fill_value = None)
 
-        for i, (c, o) in enumerate(zip(cam_idx, offsets)):
-            X_cam = self.camsystem_to_cam(X, i)
-            x[i] = c['camera'].space_to_sensor(X_cam, o)
+        x = []
+        for ci, o in zip(cam_idx, offsets):
+            X_cam = self.camsystem_to_cam(X, ci)
+            x.append(self.cameras[ci]['camera'].space_to_sensor(X_cam, o, check_inverse=check_inverse))
+        x = np.array(x)
 
         return x.reshape((*cam_shape, *X_shape[0:-1],2))
 
@@ -224,15 +224,12 @@ class Camerasystem:
         if n_AB[main_cam_idx] == 0:
             return np.zeros((0, 3))
 
-        cam_bases = np.empty((len(AB), 3))
-        cam_bases[:] = np.nan
+        cam_bases = np.full((len(AB), 3), fill_value=np.nan)
 
-        full_ab = np.empty((len(AB), n_AB[main_cam_idx], 2))
-        full_ab[:] = np.nan
+        full_ab = np.full((len(AB), n_AB[main_cam_idx], 2), fill_value=np.nan)
         full_ab[main_cam_idx] = AB[main_cam_idx]
 
-        full_dirs = np.empty((len(AB), n_AB[main_cam_idx], 3))
-        full_dirs[:] = np.nan
+        full_dirs = np.full((len(AB), n_AB[main_cam_idx], 3), fill_value=np.nan)
         full_dirs[main_cam_idx, :, :], cb = self.get_camera_lines_cam(AB[main_cam_idx],
                                                                       main_cam_idx,
                                                                       offsets[main_cam_idx])
