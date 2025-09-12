@@ -99,19 +99,19 @@ class Camerasystem:
         # Use this if only a direction from teh camera is known and the camera translation is negligible, e.g.
         #  for objects far away from omnidirectional cameras
         if offsets is None:
-            offsets = [None for _ in self.cameras]
+            offsets = [None] * len(self.cameras)
 
         V_shape = V.shape
         V = V.reshape(-1, 3)
-        x = np.zeros(shape=(len(self.cameras), V.shape[0], 2))
+        x = []
 
-        for i, (c, o) in enumerate(zip(self.cameras, offsets)):
+        for c, o in zip(self.cameras, offsets):
             coords_cam = V @ c['R'].T
-            x[i] = c['camera'].space_to_sensor(coords_cam, o)
+            x.append(c['camera'].space_to_sensor(coords_cam, o))
 
-        return x.reshape((len(self.cameras),) + V_shape[0:-1] + (2,))
+        return np.asarray(x).reshape((len(self.cameras),) + V_shape[0:-1] + (2,))
 
-    def get_camera_lines(self, x, offsets=None):
+    def get_camera_lines(self, x, offsets=None, use_geometry=False):
         # Get camera lines corresponding to image coordinates in shape np.array((N_CAMS, ..., 2)) for all cameras.
         # Returns directions from camera np.array((N_CAMS, ..., 3)) and camera positions np.array((N_CAMS, ..., 3))
         #  in world coordinates (for direct triangulation)
@@ -126,8 +126,10 @@ class Camerasystem:
 
         for i, o in enumerate(offsets):
             V[i, :], P[i, :] = self.get_camera_lines_cam(x[i], i, o)
-
-        return V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
+        V, P = V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
+        if use_geometry:
+            return Line(position=P, direction=V)
+        return V, P
 
     def get_camera_lines_cam(self, x, cam_idx, offset=None, use_geometry=False):
         # Get camera lines corresponding to image coordinates in shape np.array((..., 2)) for camera cam_idx.
