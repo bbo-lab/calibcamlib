@@ -3,3 +3,5 @@ __version__ = "0.3.15"
 import calibcamlib.dist_OpenCV as distortion
 from calibcamlib.camera import Camera
 from calibcamlib.camerasystem import Camerasystem
+from calibcamlib.board import Board
+from calibcamlib.detection import Detections
