@@ -2,9 +2,7 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 
-import cv2
 import numpy as np
-from cv2 import aruco
 
 
 class Board:
@@ -40,6 +38,8 @@ class Board:
         return self.board_params
 
     def get_cv2_board(self):
+        import cv2
+        from cv2 import aruco
         board_params = self.board_params
 
         board = cv2.aruco.CharucoBoard((board_params['boardWidth'],
