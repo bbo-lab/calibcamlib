@@ -2,6 +2,7 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 
+from scipy.spatial.transform import Rotation as R
 import numpy as np
 
 
@@ -37,17 +38,25 @@ class Board:
     def get_board_params(self):
         return self.board_params
 
-    def get_cv2_board(self):
+    def get_cv2_board(self, zero_ids=False):
         import cv2
         from cv2 import aruco
         board_params = self.board_params
+        
+        ids = board_params.get('ids', None)
+        if ids is not None and zero_ids:
+            ids = ids - ids[0]
 
-        board = cv2.aruco.CharucoBoard((board_params['boardWidth'],
-                                        board_params['boardHeight']),
+        try:
+            board = cv2.aruco.CharucoBoard((board_params['boardWidth'],
+                                       board_params['boardHeight']),
                                        board_params['square_size_real'],
                                        board_params['marker_size'] * board_params['square_size_real'],
                                        cv2.aruco.getPredefinedDictionary(board_params['dictionary_type']),
-                                       ids=board_params.get('ids', None))
+                                       ids=ids)
+        except Exception as e:
+            print(e)
+            raise e
 
         if "legacy" in board_params:
             board.setLegacyPattern(board_params["legacy"])
@@ -78,17 +87,19 @@ class Board:
                                        board_2], 1)
 
         if "rotation" in board_params:
-            board_points = board_points * board_params["rotation"].T
+            board_points = R.from_rotvec(board_params["rotation"]).apply(board_points)
         if "offset" in board_params:
-            board_points = board_points + board_params["offset"].reshape(1, 3)
+            board_points = board_points + np.array(board_params["offset"]).reshape(1, 3)
 
         return board_points  # n_corners x 3
 
     def get_board_ids(self):
+        # Returns ARUCO ids of boards (these are different from charuco corner ids!)
         if "ids" in self.board_params:
             return self.board_params["ids"]
         else:
-            return np.arange((self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1))
+#            return np.arange((self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1))
+            return (self.board_params["boardWidth"]*self.board_params["boardHeight"]) // 2
 
     def get_board_img(self, pixel_size=None):
         if pixel_size is None:
