@@ -44,8 +44,8 @@ def collection_to_array(collection_in, do_copy=True):
         return collection_in
     elif isinstance(collection_in, tuple):
         input_new = []
-        for ky in collection_in:
-            input_new.append(collection_to_array(collection_in[ky], do_copy=False))
+        for i in collection_in:
+            input_new.append(collection_to_array(i, do_copy=False))
         return tuple(input_new)
     else:
         return collection_in
