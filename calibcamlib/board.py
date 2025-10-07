@@ -98,8 +98,7 @@ class Board:
         if "ids" in self.board_params:
             return self.board_params["ids"]
         else:
-#            return np.arange((self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1))
-            return (self.board_params["boardWidth"]*self.board_params["boardHeight"]) // 2
+            return np.arange((self.board_params["boardWidth"]*self.board_params["boardHeight"]) // 2)
 
     def get_corner_ids(self, zero_ids=False):
         # Returns corner ids. openCV starts corner ids at 0 regardless of aruco patterns. In calibcam convention,
