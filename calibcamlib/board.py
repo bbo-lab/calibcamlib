@@ -28,12 +28,23 @@ class Board:
             board_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../boards',
                                       board_path.as_posix() + '.npy')
 
-        board_params = np.load(os.path.expanduser(board_path), allow_pickle=True).item()
+        board_params = np.load(os.path.expanduser(board_path), allow_pickle=True)[()]
 
-        if board_params is not None:
-            board_params['marker_size_real'] = board_params['square_size_real'] * board_params['marker_size']  # noqa
+        nolist = False
+        if isinstance(board_params, dict):
+            nolist = True
+            board_params = [board_params]
 
-        return Board(board_params)
+        boards = []
+        for bp in board_params:
+            if bp is not None:
+                bp['marker_size_real'] = bp['square_size_real'] * bp['marker_size']  # noqa
+            boards.append(Board(bp))
+
+        if nolist:
+            boards = boards[0]
+
+        return boards
 
     def get_board_params(self):
         return self.board_params
