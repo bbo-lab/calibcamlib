@@ -101,6 +101,11 @@ class Board:
 #            return np.arange((self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1))
             return (self.board_params["boardWidth"]*self.board_params["boardHeight"]) // 2
 
+    def get_corner_ids(self):
+        return np.arange(
+            (self.board_params["boardWidth"]-1) * (self.board_params["boardHeight"]-1)
+        )+self.get_board_ids()[0]
+
     def get_board_img(self, pixel_size=None):
         if pixel_size is None:
             board_params = self.get_board_params()
