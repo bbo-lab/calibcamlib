@@ -101,10 +101,17 @@ class Board:
 #            return np.arange((self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1))
             return (self.board_params["boardWidth"]*self.board_params["boardHeight"]) // 2
 
-    def get_corner_ids(self):
-        return np.arange(
-            (self.board_params["boardWidth"]-1) * (self.board_params["boardHeight"]-1)
-        )+self.get_board_ids()[0]
+    def get_corner_ids(self, zero_ids=False):
+        # Returns corner ids. openCV starts corner ids at 0 regardless of aruco patterns. In calibcam convention,
+        # corner ids start at the smallest aruco id.
+        # Caveat: openCV functions that rely on the openCV board object like calibrateCameraCharucoExtended
+        # require corner ids start at 0.
+        ids = np.arange(
+            (self.board_params["boardWidth"] - 1) * (self.board_params["boardHeight"] - 1)
+        )
+        if not zero_ids:
+            ids = ids + self.get_board_ids()[0]
+        return ids
 
     def get_board_img(self, pixel_size=None):
         if pixel_size is None:
