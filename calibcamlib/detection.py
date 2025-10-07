@@ -226,13 +226,13 @@ class Detections:
         if cam_idxs is None:
             cam_idxs = range(self.get_n_cams())
 
-        if frame_idx in self._markers_array["detection_idxs"]:
-            det_idx = self._markers_array["detection_idxs"].tolist().index(frame_idx)
-            detections = self._markers_array["marker_coords"][cam_idxs, det_idx]
+        detections = np.full((len(cam_idxs), self.get_n_markers(), self.get_n_dim()), np.nan, dtype=np.float32)
+        for idx, cam_idx in enumerate(cam_idxs):
+            if frame_idx in self._markers_array["frame_idxs"][cam_idx]:
+                markers_cam = self._markers_array["marker_coords"][cam_idx]
+                detections[idx] = markers_cam[self._markers_array["frame_idxs"][cam_idx] == frame_idx]
 
-            return detections
-        else:
-            return np.full((len(cam_idxs), self.get_n_markers(), self.get_n_dim()), np.nan, dtype=np.float32)
+        return detections
 
     def is_empty(self):
         if self._markers_array is None:
