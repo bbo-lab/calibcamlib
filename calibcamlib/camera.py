@@ -1,5 +1,6 @@
 import numpy as np
 from calibcamlib import distortion as dist  # TODO: make model variable
+from bbo import vectorlib
 
 
 class Camera:
@@ -14,6 +15,13 @@ class Camera:
         self.k = k.reshape(5)
         self.xi = xi
 
+    def convert(self, xp, dtype=None):
+        return Camera(
+            vectorlib.convert(self.A, xp, dtype=dtype),
+            vectorlib.convert(self.k, xp, dtype=dtype),
+            xi=self.xi,
+            offset=vectorlib.convert(self.offset, xp, dtype=dtype),
+        )
 
     def sensor_to_space(self, x, offset=None):
         """
@@ -63,7 +71,7 @@ class Camera:
 
         return X
 
-    def space_to_sensor(self, X, offset=None, check_inverse=False):
+    def space_to_sensor(self, X, offset=None, check_inverse=False, fastmath=False):
         if offset is None:
             offset = self.offset
 
@@ -73,31 +81,40 @@ class Camera:
 
         original_space_coords = X
 
-        if np.all(np.isnan(X)):
-            return np.full((*X_shape[:-1], 2), np.nan)
+        xp = vectorlib.get_array_module(X)
+        #if xp.all(xp.isnan(X)):
+        #    return xp.full_like(X, shape=(*X_shape[:-1], 2), fill_value=xp.nan)
 
         if not self.xi == 0:
-            norm = np.linalg.norm(X, axis=-1, keepdims=True)
-            X = np.where(norm == 0, X, X / norm)
+            norm = xp.linalg.norm(X, axis=-1, keepdims=True)
+            X = xp.where(norm == 0, X, X / norm)
             #X = np.divide(X, norm, where=norm!=0)
-            X[..., (2,)] = X[..., (2,)] + self.xi
+            X[..., (2,)] += self.xi
 
 
         # code from calibcam.multical_plot.project_board
-        x = X / X[:, (2,)]
-        x[:, 0:2] = dist.distort(x[:, 0:2], self.k)
 
-        x = x @ self.A.T
-        x = x[:, 0:2] - offset
+        # Faster version same accuracy but not bitequal:
+        if fastmath:
+            x = X[..., 0:2] / X[:, (2,)]
+            x = dist.distort(x, self.k, fastmath=fastmath)
+            x = x @ self.A.T[0:2, 0:2]
+            x += self.A.T[2, 0:2] - xp.asarray(offset)
+        else:
+            x = X / X[:, (2,)]
+            x[:, 0:2] = dist.distort(x[:, 0:2], self.k, fastmath=fastmath)
+
+            x = x @ self.A.T[:, 0:2]
+            x = x - offset
 
         if check_inverse:
             space_loc = self.sensor_to_space(x, offset=offset)
             # set all locations that are not close to the mothds input to nan
-            original_space_coords = original_space_coords / np.linalg.norm(original_space_coords, axis=-1,
+            original_space_coords = original_space_coords / xp.linalg.norm(original_space_coords, axis=-1,
                                                                            keepdims=True)
-            space_coords = space_loc / np.linalg.norm(space_loc, axis=-1, keepdims=True)
-            nanmask = ~np.isnan(original_space_coords).any(axis=-1)
-            close_mask = np.linalg.norm(space_loc - original_space_coords, axis=-1) < 1e-5
+            #space_coords = space_loc / np.linalg.norm(space_loc, axis=-1, keepdims=True)
+            #nanmask = ~np.isnan(original_space_coords).any(axis=-1)
+            close_mask = xp.linalg.norm(space_loc - original_space_coords, axis=-1) < 1e-5
             x[~close_mask] = np.nan
 
         if len(X_shape) != 2:

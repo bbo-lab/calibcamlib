@@ -35,6 +35,17 @@ class TestDistortionFunctions(unittest.TestCase):
         for n, ks in data['k'].items():
             np.testing.assert_array_equal(dist.distort(data['points'], ks), data['sol'][n])
 
+    def test_fastmath_distort(self):
+        boards_coords_ideal = np.array([
+            [[0.1, 0.2, 1.0],
+             [0.3, 0.4, 1.0]]
+        ])  # Shape (1, 2, 3)
+
+        ks = np.array([0.01, 0.001, 0.0001, 0.0002, 0.0003])
+        result_normal = dist.distort(boards_coords_ideal, ks, fastmath=False)
+        result_fast = dist.distort(boards_coords_ideal, ks, fastmath=True)
+        np.testing.assert_array_almost_equal(result_normal, result_fast, decimal=6)
+
     def test_distort_inverse(self):
         ref_file = pathlib.Path(__file__).parent.resolve() / 'data' / 'distortion_test_distort_inverse.npy'
 

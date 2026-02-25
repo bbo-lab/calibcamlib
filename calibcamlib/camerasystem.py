@@ -12,13 +12,26 @@ from calibcamlib.helper import intersect, get_line_dist
 from calibcamlib.yaml_helper import collection_to_array
 from collections.abc import Iterable
 from bbo.geometry import Line, RigidTransform, AffineTransformation, Reflection
+from bbo import vectorlib
 
 
 # R,t are world->cam
 class Camerasystem:
-    def __init__(self, unit=None):
+    def __init__(self, unit=None, xp=np):
         self.cameras = list()
         self.unit = unit
+        self.xp = xp
+
+    def convert(self, xp, dtype=None):
+        if self.xp == xp:
+            return self
+        cs_new = Camerasystem(unit=self.unit, xp=xp)
+        for cam in self.cameras:
+            cam_new = {'camera': cam['camera'].convert(xp, dtype=dtype),
+                       'R': vectorlib.convert(cam['R'], xp, dtype=dtype),
+                       't': vectorlib.convert(cam['t'], xp, dtype=dtype)}
+            cs_new.cameras.append(cam_new)
+        return cs_new
 
     def add_camera(self, A, k, rotmat, t, xi=0):
         self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
@@ -39,7 +52,7 @@ class Camerasystem:
             )
         )
 
-    def project(self, X, offsets=None, cam_idx=None, check_inverse = False):
+    def project(self, X, offsets=None, cam_idx=None, check_inverse = False, fastmath=False):
         # Project points in space of shape np.array((..., 3)) to all cameras.
         # Returns image coordinates np.array((N_CAMS, ..., 2))
 
@@ -62,8 +75,8 @@ class Camerasystem:
         x = []
         for ci, o in zip(cam_idx, offsets):
             X_cam = self.camsystem_to_cam(X, ci)
-            x.append(self.cameras[ci]['camera'].space_to_sensor(X_cam, o, check_inverse=check_inverse))
-        x = np.array(x)
+            x.append(self.cameras[ci]['camera'].space_to_sensor(X_cam, o, check_inverse=check_inverse, fastmath=fastmath))
+        x = self.xp.array(x)
 
         return x.reshape((*cam_shape, *X_shape[0:-1],2))
 
@@ -116,17 +129,17 @@ class Camerasystem:
         # Returns directions from camera np.array((N_CAMS, ..., 3)) and camera positions np.array((N_CAMS, ..., 3))
         #  in world coordinates (for direct triangulation)
         if offsets is None:
-            offsets = [None for _ in self.cameras]
+            offsets = [None] * len(self.cameras)
 
         x_shape = x.shape
         x = x.reshape((x_shape[0], -1, 2))
 
-        V = np.empty(shape=(x.shape[0], x.shape[1], 3))
-        P = np.empty(shape=(x.shape[0], x.shape[1], 3))
-
+        V, P = [], []
         for i, o in enumerate(offsets):
-            V[i, :], P[i, :] = self.get_camera_lines_cam(x[i], i, o)
-        V, P = V.reshape(x_shape[0:-1] + (3,)), P.reshape(x_shape[0:-1] + (3,))
+            V_tmp, P_tmp = self.get_camera_lines_cam(x[i], i, o)
+            V.append(V_tmp)
+            P.append(P_tmp)
+        V, P = np.array(V).reshape(x_shape[0:-1] + (3,)), np.array(P).reshape(x_shape[0:-1] + (3,))
         if use_geometry:
             return Line(position=P, direction=V)
         return V, P
@@ -137,7 +150,7 @@ class Camerasystem:
         #  in world coordinates.
         # This differes from Camera.sensor_to_space in the translation to world coordinates and the cam pos output
         x_shape = x.shape
-        x = x.reshape((x_shape[0], -1, 2))
+        x = x.reshape(-1, 2)
         #TODO documentation is incorrect, does only allow flattened arrays
         c = self.cameras[cam_idx]
         V = c['camera'].sensor_to_space(x, offset) @ c['R']
@@ -191,13 +204,13 @@ class Camerasystem:
                                     method='lm',
                                     verbose=0,
                                     args=[x[:, i_point]],
-                                    kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True})
+                                    kwargs={'offsets': offsets, "ravel": True, "nan_to_zero": True, "fastmath": True})
                 X[i_point] = res.x
 
         return X.reshape(x_shape[1:-1] + (3,))
 
-    def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False):
-        err = self.project(X, offsets) - x_orig
+    def repro_error(self, X, x_orig, offsets=None, ravel=False, nan_to_zero=False, fastmath=False):
+        err = self.project(X, offsets, fastmath=fastmath) - x_orig
         if nan_to_zero:
             err[np.isnan(err)] = 0
         if ravel:
