@@ -15,6 +15,9 @@ class Detections:
             markers_array["marker_coords"] = markers_array["marker_coords"].astype(np.float32)
         self._markers_array = markers_array
 
+    def reset_detection_idxs(self):
+        self._markers_array["detection_idxs"] = np.arange(len(self._markers_array["detection_idxs"]))
+
     @staticmethod
     def strip_nans(markers_array):
         frame_mask = np.any(~np.isnan(markers_array["marker_coords"][..., 0]), axis=(0, 2))

@@ -1,3 +1,6 @@
+from numpy import dtype, floating, generic, ndarray
+from typing import Any
+
 import os
 from collections.abc import Iterable
 from pathlib import Path
@@ -78,9 +81,8 @@ class Board:
 
     def get_board_points(self, exact=False):
         board_params = self.board_params
+        board_points_base = self.get_board_points_base()
 
-        board_width = board_params['boardWidth']
-        board_height = board_params['boardHeight']
         if exact:
             square_size_x = board_params['square_size_real_y']
             square_size_y = board_params['square_size_real_x']
@@ -88,14 +90,7 @@ class Board:
             square_size_x = board_params['square_size_real']
             square_size_y = board_params['square_size_real']
 
-        n_corners = (board_width - 1) * (board_height - 1)
-
-        board_0 = np.repeat(np.arange(1, board_width).reshape(1, board_width - 1), board_height - 1,
-                            axis=0).ravel().reshape(n_corners, 1)
-        board_1 = np.repeat(np.arange(1, board_height), board_width - 1, axis=0).reshape(n_corners, 1)
-        board_2 = np.zeros(n_corners).reshape(n_corners, 1)
-        board_points = np.concatenate([board_0 * square_size_x, board_1 * square_size_y,
-                                       board_2], 1)
+        board_points = board_points_base * np.array([square_size_x, square_size_y, 1])
 
         if "rotation" in board_params:
             board_points = R.from_rotvec(board_params["rotation"]).apply(board_points)
@@ -103,6 +98,22 @@ class Board:
             board_points = board_points + np.array(board_params["offset"]).reshape(1, 3)
 
         return board_points  # n_corners x 3
+
+    def get_board_points_base(self):
+        board_params = self.board_params
+
+        board_width = board_params['boardWidth']
+        board_height = board_params['boardHeight']
+
+        n_corners = (board_width - 1) * (board_height - 1)
+
+        board_0 = np.repeat(np.arange(1, board_width).reshape(1, board_width - 1), board_height - 1,
+                            axis=0).ravel().reshape(n_corners, 1)
+        board_1 = np.repeat(np.arange(1, board_height), board_width - 1, axis=0).reshape(n_corners, 1)
+        board_2 = np.zeros(n_corners).reshape(n_corners, 1)
+
+        board_points_base = np.concatenate([board_0, board_1, board_2], 1)
+        return board_points_base
 
     def get_board_ids(self):
         # Returns ARUCO ids of boards (these are different from charuco corner ids!)
@@ -123,25 +134,36 @@ class Board:
             ids = ids + self.get_board_ids()[0]
         return ids
 
-    def get_board_img(self, pixel_size=None):
+    def get_aruco_size(self):
+        from cv2 import aruco
+        board_params = self.get_board_params()
+        aruco_dict = board_params["dictionary_type"]
+
+        if aruco_dict >= aruco.DICT_4X4_50 and aruco_dict <= aruco.DICT_4X4_1000:
+            aruco_size = 4
+        elif aruco_dict >= aruco.DICT_5X5_50 and aruco_dict <= aruco.DICT_5X5_1000:
+            aruco_size = 5
+        elif aruco_dict >= aruco.DICT_6X6_50 and aruco_dict <= aruco.DICT_6X6_1000:
+            aruco_size = 6
+        elif aruco_dict >= aruco.DICT_7X7_50 and aruco_dict <= aruco.DICT_7X7_1000:
+            aruco_size = 7
+        else:
+            raise NotImplementedError
+
+        return aruco_size
+
+    def get_board_img(self, pixel_size=None, return_pixel_size=False):
         if pixel_size is None:
             board_params = self.get_board_params()
             marker_ratio = board_params["marker_size"]
             rows = board_params["boardWidth"]
             columns = board_params["boardHeight"]
-            aruco_dict = board_params["dictionary_type"]
 
-            match aruco_dict:
-                case aruco.DICT_4X4_250:
-                    aruco_size = 4
-                case aruco.DICT_5X5_250:
-                    aruco_size = 5
-                case _:
-                    raise NotImplementedError
+            aruco_size = self.get_aruco_size()
 
             # Generate the Charuco board image
             pixel_size = (round(((aruco_size + 2) / marker_ratio) * rows),
                           round(((aruco_size + 2) / marker_ratio) * columns))
 
         board = self.get_cv2_board()
-        return board.generateImage(pixel_size)
+        return board.generateImage(pixel_size), pixel_size

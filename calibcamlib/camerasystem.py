@@ -404,6 +404,12 @@ class Camerasystem:
                           )
         return cs
 
+    def __deepcopy__(self, memo):
+        # TODO: Add property to make class copyable. Currently, deepcopy encountering this class throws an error because
+        #  it tries to pickle numpy
+        memo[id(self)] = self
+        return self
+
 
 def strip_calibs(calibs):
     # Strips the calibration down to the minimal info necessary by calibcamlib and calibcam
