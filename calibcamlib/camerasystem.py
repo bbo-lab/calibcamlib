@@ -27,25 +27,23 @@ class Camerasystem:
             return self
         cs_new = Camerasystem(unit=self.unit, xp=xp)
         for cam in self.cameras:
-            cam_new = {'camera': cam['camera'].convert(xp, dtype=dtype),
-                       'R': vectorlib.convert(cam['R'], xp, dtype=dtype),
-                       't': vectorlib.convert(cam['t'], xp, dtype=dtype)}
-            cs_new.cameras.append(cam_new)
+            cs_new.cameras.append(vectorlib.convert(cam, xp, dtype=dtype))
         return cs_new
 
-    def add_camera(self, A, k, rotmat, t, xi=0):
-        self.cameras.append({'camera': Camera(A, k, xi=xi), 'R': rotmat, 't': t})
+    def add_camera(self, A, k, rotmat, t, xi=0, projection_model='perspective'):
+        self.cameras.append({'camera': Camera(A, k, xi=xi, projection_model=projection_model), 'R': rotmat, 't': t})
 
     def get_cam_as_dict(self, cam_idx):
         calib = self.cameras[cam_idx]["camera"].as_dict()
         calib["rvec_cam"] = self.cameras[cam_idx]["R"]
         calib["tvec_cam"] = self.cameras[cam_idx]["t"]
+        calib["projection_model"] = self.cameras[cam_idx]["camera"].projection_model
         return calib
 
-    def created_cam_through_mirror(self, cam_idx, mirror):
+    def created_cam_through_mirror(self, cam_idx, mirror) -> tuple[Camera, RigidTransform]:
         calib = created_cam_through_mirror(self.get_cam_as_dict(cam_idx), mirror)
         return (
-            Camera(calib['A'], calib['k'], xi=calib.get('xi', 0)),
+            Camera(calib['A'], calib['k'], xi=calib.get('xi', 0), projection_model=calib.get('projection_model', 'perspective')),
             RigidTransform(
                 rotation=R.from_rotvec(calib['rvec_cam'].reshape((3,))),
                 translation=calib['tvec_cam'].reshape(1, 3),
@@ -339,7 +337,7 @@ class Camerasystem:
                 calibration = yaml.safe_load(stream)
                 calibration["calibs"] = collection_to_array(calibration["calibs"])
                 return calibration
-        raise ValueError(f"Unsupported file format: {filename.suffix}. Supported formats are .npy and .yml.")
+        raise ValueError(f"Unsupported file format: {filename.suffix} for {filename}. Supported formats are .npy and .yml.")
 
 
     @staticmethod
@@ -369,12 +367,13 @@ class Camerasystem:
         cs = Camerasystem(unit=unit)
 
         for calib in calibs:
-            cs.add_camera(calib['A'],
-                          calib['k'],
-                          R.from_rotvec(calib['rvec_cam'].reshape((3,))).as_matrix(),
-                          calib['tvec_cam'].reshape(1, 3),
-                          xi=calib.get('xi', 0),
-                          )
+            cs.add_camera(
+                calib['A'],
+                calib['k'],
+                R.from_rotvec(calib['rvec_cam'].reshape((3,))).as_matrix(),
+                calib['tvec_cam'].reshape(1, 3),
+                xi=calib.get('xi', 0),
+                projection_model=calib.get('projection_model', 'perspective'))
 
         return cs
 
@@ -411,10 +410,10 @@ class Camerasystem:
         return self
 
 
-def strip_calibs(calibs):
+def strip_calibs(calibs) -> list[dict]:
     # Strips the calibration down to the minimal info necessary by calibcamlib and calibcam
     calibs_new = []
-    parameters = ["A", "k", "xi", "rvec_cam", "tvec_cam"]
+    parameters = ["A", "k", "xi", "rvec_cam", "tvec_cam", "projection_model"]
     for c in calibs:
         calib_new = {}
         for param in parameters:

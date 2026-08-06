@@ -87,7 +87,7 @@ def vectorized_roots(polynomials):
     return roots
 
 
-def distort_inverse(ab_dist, k):
+def distort_inverse(ab_dist:np.ndarray, k):
     n = ab_dist.shape[0]
 
     s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
@@ -123,7 +123,7 @@ def distort_inverse(ab_dist, k):
 
     is_real = np.isreal(roots)
     is_non_negative = roots >= 0
-    valid_mask = np.logical_and(is_real, is_non_negative)
+    valid_mask = is_real & is_non_negative
 
     valid_roots = np.where(valid_mask, np.real(roots), np.inf)
 

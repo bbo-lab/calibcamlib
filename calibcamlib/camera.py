@@ -4,7 +4,7 @@ from bbo import vectorlib
 
 
 class Camera:
-    def __init__(self, A, k, xi=0, offset=None, distortion=None):  # TODO: Implement variable distortion
+    def __init__(self, A, k, xi=0, offset=None, distortion=None, projection_model='perspective'):  # TODO: Implement variable distortion
         if distortion is not None:
             raise ValueError("Distortion parameter is not implemented yet.")
         if offset is None:
@@ -14,6 +14,7 @@ class Camera:
         self.A = A.reshape(3, 3)
         self.k = k.reshape(5)
         self.xi = xi
+        self.projection_model = projection_model
 
     def convert(self, xp, dtype=None):
         return Camera(
@@ -21,9 +22,10 @@ class Camera:
             vectorlib.convert(self.k, xp, dtype=dtype),
             xi=self.xi,
             offset=vectorlib.convert(self.offset, xp, dtype=dtype),
+            projection_model=self.projection_model
         )
 
-    def sensor_to_space(self, x, offset=None):
+    def sensor_to_space(self, x:np.ndarray, offset=None) -> np.ndarray:
         """
         Transforms 2D sensor coordinates into 3D space coordinates using intrinsic parameters
         and distortion correction.
@@ -53,25 +55,60 @@ class Camera:
         X[..., 2] = 1
 
         X = X @ np.linalg.inv(self.A.T)
-
         X[:, 0:2] = dist.distort_inverse(X[:, 0:2], self.k)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            X /= np.sqrt(np.sum(X ** 2, axis=-1, keepdims=True))
-        radicand = 1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2
-        rad_mask = radicand.reshape((-1,)) >= 0
 
-        a = np.full(X[:, (2,)].shape, np.nan)
-        a[rad_mask, :] = self.xi * X[rad_mask, 2].reshape(-1, 1) + np.sqrt(radicand[rad_mask])
+        if self.projection_model == 'fisheye_equidistant':
+            xequidist, yequidist = X[:, (0,)], X[:, (1,)]
+            radius2d = np.sqrt(np.square(xequidist) + np.square(yequidist))
+            div = np.divide(np.sin(radius2d), radius2d, out=np.ones_like(radius2d), where=radius2d != 0)
+            X[:, (0,)] = div * xequidist
+            X[:, (1,)] = div * yequidist
+            X[:, (2,)] = np.cos(radius2d)
+        elif self.projection_model == "perspective" or self.projection_model is None:
+            with np.errstate(divide='ignore', invalid='ignore'):
+                X /= np.linalg.norm(X, axis=-1, keepdims=True)
+            if self.xi != 0:
+                radicand = 1 + (X[:, (2,)] ** 2 - 1) * self.xi ** 2
+                rad_mask = radicand.reshape((-1,)) >= 0
 
-        X = X*a
-        X[..., (2,)] = X[..., (2,)] - self.xi
+                a = np.full(X[:, (2,)].shape, np.nan)
+                a[rad_mask, :] = self.xi * X[rad_mask, 2].reshape(-1, 1) + np.sqrt(radicand[rad_mask])
+
+                X = X*a
+                X[..., (2,)] = X[..., (2,)] - self.xi
+        else:
+            raise ValueError(f"Unknown projection model: {self.projection_model}")
 
         if len(x_shape) != 2:
             X = X.reshape(x_shape[:-1] + (3,))
 
         return X
 
-    def space_to_sensor(self, X, offset=None, check_inverse=False, fastmath=False):
+    def _apply_projection_model(self, X: np.ndarray, xp, fastmath=False) -> np.ndarray:
+        if self.projection_model == 'fisheye_equidistant':
+            x = X[..., 0:2]
+            xsq = xp.square(x)
+            length = xp.sqrt(xsq[..., 0] + xsq[..., 1])
+            elev = np.arctan2(length, X[..., 2])
+            xp.divide(elev, length, where=length != 0, out=length)
+            if fastmath:
+                x = x * length[..., None]
+            else:
+                x = np.stack((x[..., 0] * length, x[..., 1] * length, xp.ones_like(X[..., 2])), axis=-1)
+        elif self.projection_model is None or self.projection_model == 'perspective':
+            if self.xi != 0:
+                norm = xp.linalg.norm(X, axis=-1, keepdims=True)
+                X = xp.where(norm == 0, X, X / norm)
+                X[..., (2,)] += self.xi
+            if fastmath:
+                x = X[..., 0:2] / X[:, (2,)]
+            else:
+                x = X / X[:, (2,)]
+        else:
+            raise ValueError(f"Unknown projection model: {self.projection_model}")
+        return x
+
+    def space_to_sensor(self, X:np.ndarray, offset=None, check_inverse=False, fastmath=False) -> np.ndarray:
         if offset is None:
             offset = self.offset
 
@@ -85,25 +122,15 @@ class Camera:
         #if xp.all(xp.isnan(X)):
         #    return xp.full_like(X, shape=(*X_shape[:-1], 2), fill_value=xp.nan)
 
-        if not self.xi == 0:
-            norm = xp.linalg.norm(X, axis=-1, keepdims=True)
-            X = xp.where(norm == 0, X, X / norm)
-            #X = np.divide(X, norm, where=norm!=0)
-            X[..., (2,)] += self.xi
-
-
-        # code from calibcam.multical_plot.project_board
+        x = self._apply_projection_model(X, xp, fastmath=fastmath)
 
         # Faster version same accuracy but not bitequal:
         if fastmath:
-            x = X[..., 0:2] / X[:, (2,)]
             x = dist.distort(x, self.k, fastmath=fastmath)
             x = x @ self.A.T[0:2, 0:2]
             x += self.A.T[2, 0:2] - xp.asarray(offset)
         else:
-            x = X / X[:, (2,)]
             x[:, 0:2] = dist.distort(x[:, 0:2], self.k, fastmath=fastmath)
-
             x = x @ self.A.T[:, 0:2]
             x = x - offset
 
@@ -128,4 +155,5 @@ class Camera:
             "k": self.k,
             "xi": self.xi,
             "offset": self.offset,
+            "projection_model": self.projection_model
         }
