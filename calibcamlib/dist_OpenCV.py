@@ -91,9 +91,6 @@ def distort_inverse(ab_dist:np.ndarray, k):
     n = ab_dist.shape[0]
 
     s = np.sqrt(np.sum(ab_dist ** 2, axis=1))
-    s_0_mask = s==0
-    if np.all(s_0_mask):
-        return ab_dist
 
     valid_coefficients = []
     valid_indices = np.where(s > 0)[0]
@@ -101,6 +98,8 @@ def distort_inverse(ab_dist:np.ndarray, k):
     keep_trailing_zeros = False
     vectorized = True
 
+    # Polynom is -s r^0 + 1 r^1 + 0 r^2 + k1 r^3 ...
+    # from s^2 = (x^2 + y^2) (1 + k1 r^2 + k2 r^4 ...)
     valid_coefficients.append(-s[valid_indices])
     valid_coefficients.append(np.ones(num_valid))
     if np.any(k[[0,1,4]] != 0) or keep_trailing_zeros:
