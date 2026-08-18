@@ -17,13 +17,19 @@ from bbo import vectorlib
 
 # R,t are world->cam
 class Camerasystem:
-    def __init__(self, unit=None, xp=np):
+    def __init__(self, unit=None, xp=None):
         self.cameras = list()
         self.unit = unit
         self.xp = xp
 
+    def get_xp(self):
+        if self.xp is None:
+            return np
+        else:
+            return self.xp
+
     def convert(self, xp, dtype=None):
-        if self.xp == xp:
+        if self.get_xp() == xp:
             return self
         cs_new = Camerasystem(unit=self.unit, xp=xp)
         for cam in self.cameras:
@@ -74,7 +80,7 @@ class Camerasystem:
         for ci, o in zip(cam_idx, offsets):
             X_cam = self.camsystem_to_cam(X, ci)
             x.append(self.cameras[ci]['camera'].space_to_sensor(X_cam, o, check_inverse=check_inverse, fastmath=fastmath))
-        x = self.xp.array(x)
+        x = self.get_xp().array(x)
 
         return x.reshape((*cam_shape, *X_shape[0:-1],2))
 

@@ -132,7 +132,7 @@ def distort_inverse(ab_dist:np.ndarray, k):
     r[valid_indices] = min_roots
 
     ab = ab_dist * (r / s)[:, np.newaxis]
-    ab[s_0_mask] = ab_dist[s_0_mask]
+    # ab[s_0_mask] = ab_dist[s_0_mask]
 
     if np.all(k[2:4] == 0):
         return ab
