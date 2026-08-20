@@ -1,4 +1,4 @@
-qimport numpy as np
+import numpy as np
 from calibcamlib import distortion as dist  # TODO: make model variable
 from bbo import vectorlib
 
