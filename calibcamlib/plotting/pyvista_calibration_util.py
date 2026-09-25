@@ -2,7 +2,7 @@ import numpy as np
 import pyvista as pv
 
 from calibcamlib import Camerasystem
-
+from bbo import geometry
 
 class PyvistaCalibrationPlotter:
     """
@@ -48,8 +48,9 @@ class PyvistaCalibrationPlotter:
         videoreaders=None,
         scale=0.12,
         color = None,
-        subsurf_camera_window=6,
+        subsurf_camera_window=5,
         wide_angle_camera=False,
+        realign_center=False,
         default_camerasize=None
     ):
         self.camerasystem = camerasystem
@@ -62,6 +63,7 @@ class PyvistaCalibrationPlotter:
         self.actors = []
         self.num_cameras = len(camerasystem.cameras)
         self.wide_angle_camera = wide_angle_camera
+        self.realign_center = realign_center
         if default_camerasize is not None:
             self.default_height, self.default_width = default_camerasize
         else:
@@ -70,12 +72,24 @@ class PyvistaCalibrationPlotter:
 
     def get_camera_shape(self, icam):
         camera = self.camerasystem.cameras[icam]
-        return camera.get("height", self.default_height), camera.get("width", self.default_width)
+        return camera.get("width", self.default_width), camera.get("height", self.default_height)
 
     def setup_cameras(self):
         self.actors = []
+
+        if self.realign_center:
+            center = np.asarray(self.get_camera_shape(0)) / 2
+            #project the center and
+            c = self.camerasystem.cameras[0]
+
+            center_line = c['camera'].sensor_to_space(center[np.newaxis, :], None)[0]
+            print(center_line)
+            realign_rotation = geometry.get_perpendicular_rotation(center_line, np.array([0, 0, 1]))
+        else:
+            realign_rotation = None
+
         for icam in range(self.num_cameras):
-            height, width = self.get_camera_shape(icam)
+            width, height = self.get_camera_shape(icam)
 
             pixel_coords = np.stack(
                 np.meshgrid(
@@ -147,6 +161,9 @@ class PyvistaCalibrationPlotter:
 
             lines = np.concatenate((center_corner_edges, outer_edge_edges))
 
+            if realign_rotation is not None:
+                vertices = realign_rotation.apply(vertices)
+
             poly_data = pv.PolyData(vertices, faces=surface_faces, lines=lines)
             self.actors.append(self.plotter.add_mesh(
                 poly_data,
@@ -176,6 +193,8 @@ if __name__ == "__main__":
     parser.add_argument("--input", nargs="+", required=True, help="Input video files")
     parser.add_argument("--output", required=False, help="Output file for the plot")
     parser.add_argument("--camerasize", type=int, default=None, nargs=2)
+    parser.add_argument("--subsurf-camera-window", type=int, default=5, help="Number of subsurface points for camera window")
+    parser.add_argument("--realign-center", default=False, action="store_true", help="Realign the sensor-center of the first camera")
     parser.add_argument("--wide-angle", action="store_true", help="Use wide angle camera model")
     args = parser.parse_args()
 
@@ -190,7 +209,9 @@ if __name__ == "__main__":
             plotter=plotter,
             color=colors[iinput],
             wide_angle_camera=args.wide_angle,
-            default_camerasize=args.camerasize)
+            default_camerasize=args.camerasize,
+            subsurf_camera_window=args.subsurf_camera_window,
+            realign_center=args.realign_center)
 
     if args.output is None:
         plotter.show()
