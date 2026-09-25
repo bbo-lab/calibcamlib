@@ -48,7 +48,7 @@ class PyvistaCalibrationPlotter:
         videoreaders=None,
         scale=0.12,
         color = None,
-        subsurf_camera_window=4,
+        subsurf_camera_window=6,
         wide_angle_camera=False,
         default_camerasize=None
     ):
@@ -147,8 +147,6 @@ class PyvistaCalibrationPlotter:
 
             lines = np.concatenate((center_corner_edges, outer_edge_edges))
 
-            print(vertices.shape, surface_faces.shape, lines.shape)
-
             poly_data = pv.PolyData(vertices, faces=surface_faces, lines=lines)
             self.actors.append(self.plotter.add_mesh(
                 poly_data,
@@ -178,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", nargs="+", required=True, help="Input video files")
     parser.add_argument("--output", required=False, help="Output file for the plot")
     parser.add_argument("--camerasize", type=int, default=None, nargs=2)
+    parser.add_argument("--wide-angle", action="store_true", help="Use wide angle camera model")
     args = parser.parse_args()
 
     # Cretes a pyvista scene with all the calibrations
@@ -190,6 +189,7 @@ if __name__ == "__main__":
             camerasystem=multicalibration,
             plotter=plotter,
             color=colors[iinput],
+            wide_angle_camera=args.wide_angle,
             default_camerasize=args.camerasize)
 
     if args.output is None:
