@@ -46,7 +46,7 @@ class PyvistaCalibrationPlotter:
         plotter,
         transformation=None,
         videoreaders=None,
-        scale=0.12,
+        scale=None,
         color = None,
         subsurf_camera_window=5,
         wide_angle_camera=False,
@@ -76,6 +76,14 @@ class PyvistaCalibrationPlotter:
 
     def setup_cameras(self):
         self.actors = []
+
+        if self.scale is None:
+            # average distance between the camera centers pairwise
+            camera_centers = np.array([c['t'] for c in self.camerasystem.cameras])
+            pairwise_distances = np.linalg.norm(camera_centers[:, np.newaxis, :] - camera_centers[np.newaxis, :, :], axis=-1)
+            scale = np.sum(pairwise_distances) / (np.sum(pairwise_distances > 0) + 1e-8)
+        else:
+            scale = self.scale
 
         if self.realign_center:
             center = np.asarray(self.get_camera_shape(0)) / 2
@@ -113,7 +121,9 @@ class PyvistaCalibrationPlotter:
                 np.zeros(shape=(1,3)),
                 camera_lines.reshape(-1, 3)), axis=0)
 
-            current_camera_lines *= self.scale
+
+            current_camera_lines *= scale
+
             current_camera_lines -= c['t'] @ c['R']
 
             vertices = current_camera_lines.reshape(-1, 3)
@@ -193,6 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", nargs="+", required=True, help="Input video files")
     parser.add_argument("--output", required=False, help="Output file for the plot")
     parser.add_argument("--camerasize", type=int, default=None, nargs=2, help="Default camera size (width height) if not specified in the calibration")
+    parser.add_argument("--scale", type=float, default=None, help="Scale factor for the camera visualization")
     parser.add_argument("--subsurf-camera-window", type=int, default=5, help="Number of subsurface points for camera window")
     parser.add_argument("--realign-center", default=False, action="store_true", help="Realign the sensor-center of the first camera")
     parser.add_argument("--wide-angle", action="store_true", help="Use wide angle camera model")
@@ -211,6 +222,7 @@ if __name__ == "__main__":
             wide_angle_camera=args.wide_angle,
             default_camerasize=args.camerasize,
             subsurf_camera_window=args.subsurf_camera_window,
+            scale=args.scale,
             realign_center=args.realign_center)
 
     if args.output is None:
