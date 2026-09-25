@@ -65,9 +65,9 @@ class PyvistaCalibrationPlotter:
         self.wide_angle_camera = wide_angle_camera
         self.realign_center = realign_center
         if default_camerasize is not None:
-            self.default_height, self.default_width = default_camerasize
+            self.default_width, self.default_height = default_camerasize
         else:
-            self.default_height, self.default_width = 1080, 1920
+            self.default_width, self.default_height = 1920, 1080
         self.setup_cameras()
 
     def get_camera_shape(self, icam):
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyVista calibration plotter")
     parser.add_argument("--input", nargs="+", required=True, help="Input video files")
     parser.add_argument("--output", required=False, help="Output file for the plot")
-    parser.add_argument("--camerasize", type=int, default=None, nargs=2)
+    parser.add_argument("--camerasize", type=int, default=None, nargs=2, help="Default camera size (width height) if not specified in the calibration")
     parser.add_argument("--subsurf-camera-window", type=int, default=5, help="Number of subsurface points for camera window")
     parser.add_argument("--realign-center", default=False, action="store_true", help="Realign the sensor-center of the first camera")
     parser.add_argument("--wide-angle", action="store_true", help="Use wide angle camera model")
